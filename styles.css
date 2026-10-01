@@ -4,6 +4,7 @@
   --surface: #ffffff;
   --text: #15181d;
   --text-muted: #5f6672;
+  --border: #dde1e6;
   --accent: #ff5a1f;
   --accent-text: #ffffff;
   --radius: 14px;
@@ -17,6 +18,7 @@
     --surface: #1c2027;
     --text: #f1f3f5;
     --text-muted: #9aa2ad;
+    --border: #2c323b;
   }
 }
 
@@ -71,6 +73,23 @@ body {
   padding: 0;
 }
 
+.workout-card {
+  margin-bottom: 12px;
+  padding: var(--gutter);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.workout-card__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.workout-card__summary {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
 /* Botón fijo abajo, cómodo para el pulgar */
 .app-footer {
   position: sticky;
@@ -97,6 +116,161 @@ body {
 
 .btn--primary:active {
   transform: scale(0.98);
+}
+
+.btn--secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 2px dashed var(--border);
+}
+
+.btn-text {
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Editor: ocupa toda la pantalla en el celular */
+.editor {
+  width: 100%;
+  max-width: 480px;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.editor::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.editor__form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.editor__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: var(--gutter);
+}
+
+.editor__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.editor__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--gutter) var(--gutter);
+}
+
+.editor__subtitle {
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.editor__footer {
+  padding: var(--gutter);
+  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+}
+
+/* Campos del formulario */
+.field {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.field__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field__input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* con menos de 16px el iPhone hace zoom al escribir */
+}
+
+.field__input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Cada ejercicio dentro del editor */
+.exercise-fields {
+  list-style: none;
+  padding: 0;
+}
+
+.exercise-row {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.exercise-row .field__input {
+  background: var(--bg);
+}
+
+.exercise-row__numbers {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.mini-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.mini-field .field__input {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.exercise-row__remove {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.exercise-row__remove:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* En pantallas grandes, centrar el contenido como si fuera un celular */
