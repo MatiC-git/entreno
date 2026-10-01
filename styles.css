@@ -1,0 +1,108 @@
+/* Colores y medidas generales */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --text: #15181d;
+  --text-muted: #5f6672;
+  --accent: #ff5a1f;
+  --accent-text: #ffffff;
+  --radius: 14px;
+  --gutter: 16px;
+}
+
+/* Modo oscuro según la configuración del celular */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --surface: #1c2027;
+    --text: #f1f3f5;
+    --text-muted: #9aa2ad;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+/* Encabezado */
+.app-header {
+  padding: var(--gutter);
+}
+
+.app-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Contenido */
+.app-main {
+  flex: 1;
+  padding: 0 var(--gutter);
+}
+
+.empty-state {
+  margin-top: 25vh;
+  text-align: center;
+}
+
+.empty-state__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.empty-state__text {
+  color: var(--text-muted);
+}
+
+.workout-list {
+  list-style: none;
+  padding: 0;
+}
+
+/* Botón fijo abajo, cómodo para el pulgar */
+.app-footer {
+  position: sticky;
+  bottom: 0;
+  padding: var(--gutter);
+  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+
+.btn {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn--primary:active {
+  transform: scale(0.98);
+}
+
+/* En pantallas grandes, centrar el contenido como si fuera un celular */
+@media (min-width: 600px) {
+  body {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+}
