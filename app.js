@@ -11,9 +11,14 @@ const workoutNameInput = document.getElementById("workout-name");
 const exerciseFields = document.getElementById("exercise-fields");
 const addExerciseBtn = document.getElementById("add-exercise-btn");
 const cancelBtn = document.getElementById("cancel-btn");
+const deleteWorkoutBtn = document.getElementById("delete-workout-btn");
+const editorTitle = document.getElementById("editor-title");
 const exerciseRowTemplate = document.getElementById("exercise-row-template");
 
 let workouts = loadWorkouts();
+
+// id del entrenamiento que se está editando; null si se está creando uno nuevo
+let editingId = null;
 
 // --- Guardado (localStorage) ---
 
@@ -48,7 +53,12 @@ function renderWorkouts() {
     const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets, 0);
 
     const item = document.createElement("li");
-    item.className = "workout-card";
+
+    // La tarjeta es un botón: al tocarla se abre el editor con sus datos
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "workout-card";
+    card.addEventListener("click", () => openEditor(workout));
 
     const title = document.createElement("h2");
     title.className = "workout-card__title";
@@ -59,15 +69,23 @@ function renderWorkouts() {
     summary.textContent =
       `${plural(workout.exercises.length, "ejercicio", "ejercicios")} · ${plural(totalSets, "serie", "series")}`;
 
-    item.append(title, summary);
+    card.append(title, summary);
+    item.append(card);
     workoutList.append(item);
   }
 }
 
 // --- Editor de entrenamiento ---
 
-function addExerciseRow() {
+// Si recibe un ejercicio, completa la fila con sus datos
+function addExerciseRow(exercise) {
   const row = exerciseRowTemplate.content.firstElementChild.cloneNode(true);
+
+  if (exercise) {
+    row.querySelector(".exercise-row__name").value = exercise.name;
+    row.querySelector(".exercise-row__sets").value = exercise.sets;
+    row.querySelector(".exercise-row__reps").value = exercise.reps;
+  }
 
   row.querySelector(".exercise-row__remove").addEventListener("click", () => {
     row.remove();
@@ -87,14 +105,27 @@ function updateRemoveButtons() {
   });
 }
 
-function openEditor() {
+// Sin argumento crea uno nuevo; con un entrenamiento, lo abre para editar
+function openEditor(workout = null) {
+  editingId = workout ? workout.id : null;
+
   form.reset();
   exerciseFields.replaceChildren();
-  addExerciseRow();
+
+  if (workout) {
+    editorTitle.textContent = "Editar entrenamiento";
+    workoutNameInput.value = workout.name;
+    workout.exercises.forEach((exercise) => addExerciseRow(exercise));
+  } else {
+    editorTitle.textContent = "Nuevo entrenamiento";
+    addExerciseRow();
+  }
+
+  deleteWorkoutBtn.hidden = !workout;
   editor.showModal();
 }
 
-newWorkoutBtn.addEventListener("click", openEditor);
+newWorkoutBtn.addEventListener("click", () => openEditor());
 
 addExerciseBtn.addEventListener("click", () => {
   const row = addExerciseRow();
@@ -113,13 +144,32 @@ form.addEventListener("submit", (event) => {
     reps: Number(row.querySelector(".exercise-row__reps").value),
   }));
 
-  workouts.push({
-    id: String(Date.now()),
-    name: workoutNameInput.value.trim(),
-    exercises,
-    createdAt: new Date().toISOString(),
-  });
+  const name = workoutNameInput.value.trim();
 
+  if (editingId) {
+    // Reemplaza los datos y conserva el id y la fecha de creación
+    workouts = workouts.map((workout) =>
+      workout.id === editingId ? { ...workout, name, exercises } : workout
+    );
+  } else {
+    workouts.push({
+      id: String(Date.now()),
+      name,
+      exercises,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  saveWorkouts();
+  renderWorkouts();
+  editor.close();
+});
+
+deleteWorkoutBtn.addEventListener("click", () => {
+  const workout = workouts.find((item) => item.id === editingId);
+  if (!workout || !confirm(`¿Borrar "${workout.name}"? No se puede deshacer.`)) return;
+
+  workouts = workouts.filter((item) => item.id !== editingId);
   saveWorkouts();
   renderWorkouts();
   editor.close();

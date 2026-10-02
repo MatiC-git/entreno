@@ -5,6 +5,7 @@
   --text: #15181d;
   --text-muted: #5f6672;
   --border: #dde1e6;
+  --danger: #c62828;
   --accent: #ff5a1f;
   --accent-text: #ffffff;
   --radius: 14px;
@@ -19,6 +20,7 @@
     --text: #f1f3f5;
     --text-muted: #9aa2ad;
     --border: #2c323b;
+    --danger: #ff6b6b;
   }
 }
 
@@ -74,10 +76,21 @@ body {
 }
 
 .workout-card {
+  display: block;
+  width: 100%;
   margin-bottom: 12px;
   padding: var(--gutter);
+  border: none;
   border-radius: var(--radius);
   background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workout-card:active {
+  transform: scale(0.98);
 }
 
 .workout-card__title {
@@ -122,6 +135,11 @@ body {
   background: transparent;
   color: var(--accent);
   border: 2px dashed var(--border);
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--danger);
 }
 
 .btn-text {
@@ -184,6 +202,9 @@ body {
 }
 
 .editor__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding: var(--gutter);
   padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
 }
