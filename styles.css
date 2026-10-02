@@ -76,21 +76,25 @@ body {
 }
 
 .workout-card {
-  display: block;
-  width: 100%;
   margin-bottom: 12px;
-  padding: var(--gutter);
-  border: none;
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+.workout-card__open {
+  display: block;
+  width: 100%;
+  padding: var(--gutter);
+  border: none;
+  background: none;
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.workout-card:active {
-  transform: scale(0.98);
+.workout-card__open:active {
+  opacity: 0.6;
 }
 
 .workout-card__title {
@@ -101,6 +105,56 @@ body {
 .workout-card__summary {
   color: var(--text-muted);
   font-size: 0.875rem;
+}
+
+.workout-card__exercises {
+  list-style: none;
+  padding: 0 var(--gutter);
+  border-top: 1px solid var(--border);
+}
+
+.exercise-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+}
+
+.exercise-line + .exercise-line {
+  border-top: 1px solid var(--border);
+}
+
+.exercise-line__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exercise-line__detail {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-btn {
+  min-height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.rest-btn:active {
+  background: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Botón fijo abajo, cómodo para el pulgar */
@@ -135,6 +189,11 @@ body {
   background: transparent;
   color: var(--accent);
   border: 2px dashed var(--border);
+}
+
+.btn--ghost {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .btn--danger {
@@ -257,16 +316,22 @@ body {
   background: var(--bg);
 }
 
-.exercise-row__numbers {
+.exercise-row__top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
+}
+
+.exercise-row__numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
   margin-top: 8px;
 }
 
 .mini-field {
   display: flex;
-  flex: 1;
   align-items: center;
   gap: 6px;
   font-size: 0.875rem;
@@ -274,11 +339,13 @@ body {
 }
 
 .mini-field .field__input {
-  width: 4.5rem;
+  width: 3.25rem;
+  padding: 0 4px;
   text-align: center;
 }
 
 .exercise-row__remove {
+  flex-shrink: 0;
   width: 44px;
   height: 44px;
   border: none;
@@ -292,6 +359,98 @@ body {
 .exercise-row__remove:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+/* Timer de descanso: pantalla completa, números grandes para verlos de lejos */
+.timer {
+  width: 100%;
+  max-width: 480px;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.timer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.timer::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.timer__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gutter);
+  text-align: center;
+}
+
+.timer__label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.timer__exercise {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.timer__time {
+  margin: 16px 0;
+  font-size: clamp(4.5rem, 28vw, 8rem);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer--done .timer__time {
+  color: var(--accent);
+}
+
+.timer__progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.timer__progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.25s linear;
+}
+
+.timer__done-text {
+  margin-top: 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.timer__footer {
+  padding: var(--gutter);
+  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+}
+
+.timer__controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.timer__controls[hidden] {
+  display: none;
 }
 
 /* En pantallas grandes, centrar el contenido como si fuera un celular */

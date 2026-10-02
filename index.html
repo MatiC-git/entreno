@@ -27,7 +27,7 @@
     </button>
   </footer>
 
-  <!-- Pantalla para crear un entrenamiento -->
+  <!-- Pantalla para crear o editar un entrenamiento -->
   <dialog class="editor" id="workout-editor" aria-labelledby="editor-title">
     <form class="editor__form" id="workout-form">
       <header class="editor__header">
@@ -63,8 +63,11 @@
   <!-- Molde de cada ejercicio; app.js lo copia cada vez que se agrega uno -->
   <template id="exercise-row-template">
     <li class="exercise-row">
-      <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
-             maxlength="40" required pattern=".*\S.*" aria-label="Nombre del ejercicio">
+      <div class="exercise-row__top">
+        <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
+               maxlength="40" required pattern=".*\S.*" aria-label="Nombre del ejercicio">
+        <button class="exercise-row__remove" type="button" aria-label="Quitar ejercicio">✕</button>
+      </div>
       <div class="exercise-row__numbers">
         <label class="mini-field">
           <input class="field__input exercise-row__sets" type="number" inputmode="numeric"
@@ -76,10 +79,36 @@
                  min="1" max="100" value="10" required>
           <span>reps</span>
         </label>
-        <button class="exercise-row__remove" type="button" aria-label="Quitar ejercicio">✕</button>
+        <label class="mini-field">
+          <input class="field__input exercise-row__rest" type="number" inputmode="numeric"
+                 min="5" max="600" value="90" required aria-label="Descanso en segundos">
+          <span>s desc.</span>
+        </label>
       </div>
     </li>
   </template>
+
+  <!-- Pantalla del timer de descanso -->
+  <dialog class="timer" id="rest-timer" aria-labelledby="timer-label">
+    <div class="timer__content">
+      <p class="timer__label" id="timer-label">Descanso</p>
+      <p class="timer__exercise" id="timer-exercise"></p>
+      <p class="timer__time" id="timer-time" role="timer">0:00</p>
+      <div class="timer__progress">
+        <div class="timer__progress-fill" id="timer-progress"></div>
+      </div>
+      <p class="timer__done-text" id="timer-done-text" hidden>¡A la próxima serie!</p>
+    </div>
+
+    <footer class="timer__footer">
+      <div class="timer__controls" id="timer-controls">
+        <button class="btn btn--ghost" id="timer-add-btn" type="button">+15s</button>
+        <button class="btn btn--ghost" id="timer-pause-btn" type="button">Pausar</button>
+        <button class="btn btn--primary" id="timer-skip-btn" type="button">Saltear</button>
+      </div>
+      <button class="btn btn--primary" id="timer-close-btn" type="button" hidden>Listo</button>
+    </footer>
+  </dialog>
 
   <script src="app.js"></script>
 </body>
