@@ -330,12 +330,43 @@ body {
   gap: 4px;
 }
 
-.exercise-row__numbers {
+/* Una fila por serie: "Serie 1  [10] reps  ✕" */
+.set-fields {
+  list-style: none;
+  padding: 0;
+  margin-top: 4px;
+}
+
+.set-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 8px;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.set-row__label {
+  width: 3.75rem;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* El ✕ queda siempre pegado a la derecha */
+.set-row__remove {
+  margin-left: auto;
+}
+
+.exercise-row__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.exercise-row__add-set:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .mini-field {
@@ -352,7 +383,8 @@ body {
   text-align: center;
 }
 
-.exercise-row__remove {
+.exercise-row__remove,
+.set-row__remove {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
@@ -364,7 +396,8 @@ body {
   cursor: pointer;
 }
 
-.exercise-row__remove:disabled {
+.exercise-row__remove:disabled,
+.set-row__remove:disabled {
   opacity: 0.3;
   cursor: default;
 }
@@ -439,6 +472,22 @@ body {
 .session__reps {
   font-size: 1.25rem;
   color: var(--text-muted);
+}
+
+.session__weight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 1.25rem;
+  color: var(--text-muted);
+}
+
+.session__weight .field__input {
+  width: 6rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .session__finished-title {

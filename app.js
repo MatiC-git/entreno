@@ -4,6 +4,10 @@ const STORAGE_KEY = "entreno.workouts";
 // Descanso por defecto en segundos (también para entrenamientos guardados antes de tener este campo)
 const DEFAULT_REST = 90;
 
+// Cuántas series tiene un ejercicio nuevo, y el máximo permitido
+const DEFAULT_SETS = 3;
+const MAX_SETS = 20;
+
 // Referencias a los elementos de la página
 const workoutList = document.getElementById("workout-list");
 const emptyState = document.getElementById("empty-state");
@@ -17,12 +21,14 @@ const cancelBtn = document.getElementById("cancel-btn");
 const deleteWorkoutBtn = document.getElementById("delete-workout-btn");
 const editorTitle = document.getElementById("editor-title");
 const exerciseRowTemplate = document.getElementById("exercise-row-template");
+const setRowTemplate = document.getElementById("set-row-template");
 const sessionDialog = document.getElementById("workout-session");
 const sessionTitle = document.getElementById("session-title");
 const sessionCurrent = document.getElementById("session-current");
 const sessionSet = document.getElementById("session-set");
 const sessionExercise = document.getElementById("session-exercise");
 const sessionReps = document.getElementById("session-reps");
+const sessionWeight = document.getElementById("session-weight");
 const sessionFinished = document.getElementById("session-finished");
 const sessionSummary = document.getElementById("session-summary");
 const sessionPlan = document.getElementById("session-plan");
@@ -49,10 +55,26 @@ let editingId = null;
 function loadWorkouts() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
+    const list = saved ? JSON.parse(saved) : [];
+    return list.map((workout) => ({
+      ...workout,
+      exercises: workout.exercises.map(migrateExercise),
+    }));
   } catch {
     return [];
   }
+}
+
+// Antes cada ejercicio guardaba la cantidad de series y unas reps para todas
+// ({ sets: 3, reps: 10 }); ahora cada serie tiene las suyas ({ sets: [{ reps: 10 }, ...] })
+function migrateExercise(exercise) {
+  if (Array.isArray(exercise.sets)) return exercise;
+
+  const { reps, ...others } = exercise;
+  return {
+    ...others,
+    sets: Array.from({ length: exercise.sets }, () => ({ reps })),
+  };
 }
 
 function saveWorkouts() {
@@ -109,7 +131,7 @@ function renderWorkouts() {
 
       const detail = document.createElement("span");
       detail.className = "exercise-line__detail";
-      detail.textContent = `${exercise.sets}×${exercise.reps}`;
+      detail.textContent = describeSets(exercise.sets);
 
       const restBtn = document.createElement("button");
       restBtn.type = "button";
@@ -133,8 +155,32 @@ function renderWorkouts() {
   }
 }
 
+// Reps iguales: "3×10". Distintas: "12/10/8". Si hay peso, se suma: "3×10 · 40 kg" o "· 40–50 kg"
+function describeSets(sets) {
+  const reps = sets.map((set) => set.reps);
+  const repsText = reps.every((value) => value === reps[0]) ? `${sets.length}×${reps[0]}` : reps.join("/");
+
+  const weights = sets.map((set) => set.weight).filter((weight) => weight != null);
+  if (weights.length === 0) return repsText;
+
+  const min = Math.min(...weights);
+  const max = Math.max(...weights);
+  const weightText = min === max ? formatWeight(min) : `${formatWeight(min)}–${formatWeight(max)}`;
+  return `${repsText} · ${weightText} kg`;
+}
+
+// 22.5 → "22,5"
+function formatWeight(weight) {
+  return weight.toLocaleString("es-AR");
+}
+
+// Campo de peso vacío → null (ejercicio sin peso, ej: dominadas)
+function readWeight(input) {
+  return input.value === "" ? null : Number(input.value);
+}
+
 function describeWorkout(workout) {
-  const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets, 0);
+  const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   return `${plural(workout.exercises.length, "ejercicio", "ejercicios")} · ${plural(totalSets, "serie", "series")}`;
 }
 
@@ -146,9 +192,10 @@ function addExerciseRow(exercise) {
 
   if (exercise) {
     row.querySelector(".exercise-row__name").value = exercise.name;
-    row.querySelector(".exercise-row__sets").value = exercise.sets;
-    row.querySelector(".exercise-row__reps").value = exercise.reps;
     row.querySelector(".exercise-row__rest").value = exercise.rest ?? DEFAULT_REST;
+    exercise.sets.forEach((set) => addSetRow(row, set));
+  } else {
+    for (let i = 0; i < DEFAULT_SETS; i++) addSetRow(row);
   }
 
   row.querySelector(".exercise-row__remove").addEventListener("click", () => {
@@ -156,9 +203,54 @@ function addExerciseRow(exercise) {
     updateRemoveButtons();
   });
 
+  row.querySelector(".exercise-row__add-set").addEventListener("click", () => {
+    const setRow = addSetRow(row);
+    setRow.querySelector(".set-row__reps").focus();
+  });
+
   exerciseFields.append(row);
   updateRemoveButtons();
   return row;
+}
+
+// Si no recibe una serie, copia los valores de la última: lo más común es repetirlos
+function addSetRow(exerciseRow, set) {
+  const setFields = exerciseRow.querySelector(".set-fields");
+  const setRow = setRowTemplate.content.firstElementChild.cloneNode(true);
+  const repsInput = setRow.querySelector(".set-row__reps");
+  const weightInput = setRow.querySelector(".set-row__weight");
+  const previous = setFields.lastElementChild;
+
+  if (set) {
+    repsInput.value = set.reps;
+    weightInput.value = set.weight ?? "";
+  } else if (previous) {
+    repsInput.value = previous.querySelector(".set-row__reps").value;
+    weightInput.value = previous.querySelector(".set-row__weight").value;
+  }
+
+  setRow.querySelector(".set-row__remove").addEventListener("click", () => {
+    setRow.remove();
+    updateSetRows(exerciseRow);
+  });
+
+  setFields.append(setRow);
+  updateSetRows(exerciseRow);
+  return setRow;
+}
+
+// Renumera las series y habilita o no los botones (mínimo 1 serie, máximo MAX_SETS)
+function updateSetRows(exerciseRow) {
+  const setRows = [...exerciseRow.querySelectorAll(".set-row")];
+
+  setRows.forEach((setRow, index) => {
+    setRow.querySelector(".set-row__label").textContent = `Serie ${index + 1}`;
+    setRow.querySelector(".set-row__reps").setAttribute("aria-label", `Repeticiones de la serie ${index + 1}`);
+    setRow.querySelector(".set-row__weight").setAttribute("aria-label", `Peso en kg de la serie ${index + 1}`);
+    setRow.querySelector(".set-row__remove").disabled = setRows.length === 1;
+  });
+
+  exerciseRow.querySelector(".exercise-row__add-set").disabled = setRows.length >= MAX_SETS;
 }
 
 // Siempre tiene que quedar al menos un ejercicio
@@ -204,9 +296,11 @@ form.addEventListener("submit", (event) => {
 
   const exercises = [...exerciseFields.children].map((row) => ({
     name: row.querySelector(".exercise-row__name").value.trim(),
-    sets: Number(row.querySelector(".exercise-row__sets").value),
-    reps: Number(row.querySelector(".exercise-row__reps").value),
     rest: Number(row.querySelector(".exercise-row__rest").value),
+    sets: [...row.querySelectorAll(".set-row")].map((setRow) => ({
+      reps: Number(setRow.querySelector(".set-row__reps").value),
+      weight: readWeight(setRow.querySelector(".set-row__weight")),
+    })),
   }));
 
   const name = workoutNameInput.value.trim();
@@ -412,21 +506,26 @@ function renderSession() {
   if (finished) {
     sessionSummary.textContent = describeWorkout(workout);
   } else {
-    sessionSet.textContent = `Serie ${set} de ${exercise.sets}`;
+    sessionSet.textContent = `Serie ${set} de ${exercise.sets.length}`;
     sessionExercise.textContent = exercise.name;
-    sessionReps.textContent = plural(exercise.reps, "repetición", "repeticiones");
+    sessionReps.textContent = plural(exercise.sets[set - 1].reps, "repetición", "repeticiones");
+
+    // Último peso usado en esta serie; si nunca se cargó, el de la serie anterior
+    const weight = exercise.sets[set - 1].weight ?? exercise.sets[set - 2]?.weight;
+    sessionWeight.value = weight ?? "";
   }
 
   // Lista de ejercicios con cuántas series van hechas de cada uno
   const steps = workout.exercises.map((item, index) => {
+    const totalSets = item.sets.length;
     let doneSets = 0;
-    if (finished || index < exerciseIndex) doneSets = item.sets;
+    if (finished || index < exerciseIndex) doneSets = totalSets;
     else if (index === exerciseIndex) doneSets = set - 1;
 
     const step = document.createElement("li");
     step.className = "session-step";
     step.classList.toggle("session-step--current", !finished && index === exerciseIndex);
-    step.classList.toggle("session-step--done", doneSets === item.sets);
+    step.classList.toggle("session-step--done", doneSets === totalSets);
 
     const name = document.createElement("span");
     name.className = "session-step__name";
@@ -434,7 +533,7 @@ function renderSession() {
 
     const count = document.createElement("span");
     count.className = "session-step__count";
-    count.textContent = `${doneSets === item.sets ? "✓ " : ""}${doneSets}/${item.sets}`;
+    count.textContent = `${doneSets === totalSets ? "✓ " : ""}${doneSets}/${totalSets}`;
 
     step.append(name, count);
     return step;
@@ -448,9 +547,17 @@ sessionDoneBtn.addEventListener("click", () => {
     return;
   }
 
+  // Peso inválido (ej: negativo): mostrar el error del navegador y no avanzar
+  if (!sessionWeight.reportValidity()) return;
+
   const { workout } = session;
   const exercise = workout.exercises[session.exerciseIndex];
-  const isLastSet = session.set === exercise.sets;
+
+  // Guardar el peso usado: la próxima vez esta serie arranca con ese valor
+  exercise.sets[session.set - 1].weight = readWeight(sessionWeight);
+  saveWorkouts();
+
+  const isLastSet = session.set === exercise.sets.length;
   const isLastExercise = session.exerciseIndex === workout.exercises.length - 1;
 
   // Última serie del último ejercicio: no hay descanso, se termina
@@ -471,7 +578,7 @@ sessionDoneBtn.addEventListener("click", () => {
   // Descanso del ejercicio recién hecho, avisando qué viene después
   const next = workout.exercises[session.exerciseIndex];
   startRestTimer(
-    `Siguiente: ${next.name} · serie ${session.set} de ${next.sets}`,
+    `Siguiente: ${next.name} · serie ${session.set} de ${next.sets.length}`,
     exercise.rest ?? DEFAULT_REST
   );
 });
@@ -493,6 +600,7 @@ sessionDialog.addEventListener("cancel", (event) => {
 sessionDialog.addEventListener("close", () => {
   session = null;
   if (!timer) releaseScreen();
+  renderWorkouts(); // las tarjetas muestran los pesos actualizados
 });
 
 renderWorkouts();
