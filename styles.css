@@ -340,18 +340,20 @@ body {
 .set-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-height: 52px;
 }
 
 .set-row__label {
-  width: 4.5rem;
+  width: 3.75rem;
+  flex-shrink: 0;
   font-size: 0.875rem;
   color: var(--text-muted);
 }
 
-.set-row .mini-field {
-  flex: 1;
+/* El ✕ queda siempre pegado a la derecha */
+.set-row__remove {
+  margin-left: auto;
 }
 
 .exercise-row__bottom {
@@ -470,6 +472,22 @@ body {
 .session__reps {
   font-size: 1.25rem;
   color: var(--text-muted);
+}
+
+.session__weight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 1.25rem;
+  color: var(--text-muted);
+}
+
+.session__weight .field__input {
+  width: 6rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .session__finished-title {

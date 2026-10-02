@@ -89,6 +89,11 @@
                min="1" max="100" value="10" required>
         <span>reps</span>
       </label>
+      <label class="mini-field">
+        <input class="field__input set-row__weight" type="number" inputmode="decimal"
+               min="0" max="500" step="any" placeholder="–">
+        <span>kg</span>
+      </label>
       <button class="set-row__remove" type="button" aria-label="Quitar serie">✕</button>
     </li>
   </template>
@@ -105,6 +110,12 @@
         <p class="session__set" id="session-set"></p>
         <p class="session__exercise" id="session-exercise"></p>
         <p class="session__reps" id="session-reps"></p>
+        <!-- Se puede ajustar antes de marcar la serie; queda guardado para la próxima vez -->
+        <label class="session__weight">
+          <input class="field__input" id="session-weight" type="number" inputmode="decimal"
+                 min="0" max="500" step="any" placeholder="–" aria-label="Peso de esta serie en kg">
+          <span>kg</span>
+        </label>
       </section>
 
       <section class="session__finished" id="session-finished" hidden>

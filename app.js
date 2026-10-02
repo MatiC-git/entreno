@@ -28,6 +28,7 @@ const sessionCurrent = document.getElementById("session-current");
 const sessionSet = document.getElementById("session-set");
 const sessionExercise = document.getElementById("session-exercise");
 const sessionReps = document.getElementById("session-reps");
+const sessionWeight = document.getElementById("session-weight");
 const sessionFinished = document.getElementById("session-finished");
 const sessionSummary = document.getElementById("session-summary");
 const sessionPlan = document.getElementById("session-plan");
@@ -154,10 +155,28 @@ function renderWorkouts() {
   }
 }
 
-// Todas iguales: "3×10". Distintas: "12/10/8"
+// Reps iguales: "3×10". Distintas: "12/10/8". Si hay peso, se suma: "3×10 · 40 kg" o "· 40–50 kg"
 function describeSets(sets) {
   const reps = sets.map((set) => set.reps);
-  return reps.every((value) => value === reps[0]) ? `${sets.length}×${reps[0]}` : reps.join("/");
+  const repsText = reps.every((value) => value === reps[0]) ? `${sets.length}×${reps[0]}` : reps.join("/");
+
+  const weights = sets.map((set) => set.weight).filter((weight) => weight != null);
+  if (weights.length === 0) return repsText;
+
+  const min = Math.min(...weights);
+  const max = Math.max(...weights);
+  const weightText = min === max ? formatWeight(min) : `${formatWeight(min)}–${formatWeight(max)}`;
+  return `${repsText} · ${weightText} kg`;
+}
+
+// 22.5 → "22,5"
+function formatWeight(weight) {
+  return weight.toLocaleString("es-AR");
+}
+
+// Campo de peso vacío → null (ejercicio sin peso, ej: dominadas)
+function readWeight(input) {
+  return input.value === "" ? null : Number(input.value);
 }
 
 function describeWorkout(workout) {
@@ -199,12 +218,15 @@ function addSetRow(exerciseRow, set) {
   const setFields = exerciseRow.querySelector(".set-fields");
   const setRow = setRowTemplate.content.firstElementChild.cloneNode(true);
   const repsInput = setRow.querySelector(".set-row__reps");
+  const weightInput = setRow.querySelector(".set-row__weight");
   const previous = setFields.lastElementChild;
 
   if (set) {
     repsInput.value = set.reps;
+    weightInput.value = set.weight ?? "";
   } else if (previous) {
     repsInput.value = previous.querySelector(".set-row__reps").value;
+    weightInput.value = previous.querySelector(".set-row__weight").value;
   }
 
   setRow.querySelector(".set-row__remove").addEventListener("click", () => {
@@ -224,6 +246,7 @@ function updateSetRows(exerciseRow) {
   setRows.forEach((setRow, index) => {
     setRow.querySelector(".set-row__label").textContent = `Serie ${index + 1}`;
     setRow.querySelector(".set-row__reps").setAttribute("aria-label", `Repeticiones de la serie ${index + 1}`);
+    setRow.querySelector(".set-row__weight").setAttribute("aria-label", `Peso en kg de la serie ${index + 1}`);
     setRow.querySelector(".set-row__remove").disabled = setRows.length === 1;
   });
 
@@ -276,6 +299,7 @@ form.addEventListener("submit", (event) => {
     rest: Number(row.querySelector(".exercise-row__rest").value),
     sets: [...row.querySelectorAll(".set-row")].map((setRow) => ({
       reps: Number(setRow.querySelector(".set-row__reps").value),
+      weight: readWeight(setRow.querySelector(".set-row__weight")),
     })),
   }));
 
@@ -485,6 +509,10 @@ function renderSession() {
     sessionSet.textContent = `Serie ${set} de ${exercise.sets.length}`;
     sessionExercise.textContent = exercise.name;
     sessionReps.textContent = plural(exercise.sets[set - 1].reps, "repetición", "repeticiones");
+
+    // Último peso usado en esta serie; si nunca se cargó, el de la serie anterior
+    const weight = exercise.sets[set - 1].weight ?? exercise.sets[set - 2]?.weight;
+    sessionWeight.value = weight ?? "";
   }
 
   // Lista de ejercicios con cuántas series van hechas de cada uno
@@ -519,8 +547,16 @@ sessionDoneBtn.addEventListener("click", () => {
     return;
   }
 
+  // Peso inválido (ej: negativo): mostrar el error del navegador y no avanzar
+  if (!sessionWeight.reportValidity()) return;
+
   const { workout } = session;
   const exercise = workout.exercises[session.exerciseIndex];
+
+  // Guardar el peso usado: la próxima vez esta serie arranca con ese valor
+  exercise.sets[session.set - 1].weight = readWeight(sessionWeight);
+  saveWorkouts();
+
   const isLastSet = session.set === exercise.sets.length;
   const isLastExercise = session.exerciseIndex === workout.exercises.length - 1;
 
@@ -564,6 +600,7 @@ sessionDialog.addEventListener("cancel", (event) => {
 sessionDialog.addEventListener("close", () => {
   session = null;
   if (!timer) releaseScreen();
+  renderWorkouts(); // las tarjetas muestran los pesos actualizados
 });
 
 renderWorkouts();
