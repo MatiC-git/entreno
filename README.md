@@ -15,4 +15,8 @@ HTML + CSS + JavaScript, sin frameworks ni herramientas de build.
 
 ## Cómo usarla
 
-Abrir `index.html` en el navegador.
+Online (también desde el celular): https://matic-git.github.io/entreno/
+
+Se publica con GitHub Pages desde la rama `main`: cada merge actualiza el sitio en un par de minutos.
+
+En local: abrir `index.html` en el navegador.
