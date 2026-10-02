@@ -17,6 +17,17 @@ const cancelBtn = document.getElementById("cancel-btn");
 const deleteWorkoutBtn = document.getElementById("delete-workout-btn");
 const editorTitle = document.getElementById("editor-title");
 const exerciseRowTemplate = document.getElementById("exercise-row-template");
+const sessionDialog = document.getElementById("workout-session");
+const sessionTitle = document.getElementById("session-title");
+const sessionCurrent = document.getElementById("session-current");
+const sessionSet = document.getElementById("session-set");
+const sessionExercise = document.getElementById("session-exercise");
+const sessionReps = document.getElementById("session-reps");
+const sessionFinished = document.getElementById("session-finished");
+const sessionSummary = document.getElementById("session-summary");
+const sessionPlan = document.getElementById("session-plan");
+const sessionExitBtn = document.getElementById("session-exit-btn");
+const sessionDoneBtn = document.getElementById("session-done-btn");
 const restTimer = document.getElementById("rest-timer");
 const timerExercise = document.getElementById("timer-exercise");
 const timerTime = document.getElementById("timer-time");
@@ -63,8 +74,6 @@ function renderWorkouts() {
   emptyState.hidden = workouts.length > 0;
 
   for (const workout of workouts) {
-    const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets, 0);
-
     const card = document.createElement("li");
     card.className = "workout-card";
 
@@ -80,8 +89,7 @@ function renderWorkouts() {
 
     const summary = document.createElement("p");
     summary.className = "workout-card__summary";
-    summary.textContent =
-      `${plural(workout.exercises.length, "ejercicio", "ejercicios")} · ${plural(totalSets, "serie", "series")}`;
+    summary.textContent = describeWorkout(workout);
 
     openBtn.append(title, summary);
 
@@ -114,9 +122,20 @@ function renderWorkouts() {
       exerciseList.append(line);
     }
 
-    card.append(openBtn, exerciseList);
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "btn btn--primary workout-card__start";
+    startBtn.textContent = "Empezar";
+    startBtn.addEventListener("click", () => startSession(workout));
+
+    card.append(openBtn, exerciseList, startBtn);
     workoutList.append(card);
   }
+}
+
+function describeWorkout(workout) {
+  const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets, 0);
+  return `${plural(workout.exercises.length, "ejercicio", "ejercicios")} · ${plural(totalSets, "serie", "series")}`;
 }
 
 // --- Editor de entrenamiento ---
@@ -241,7 +260,8 @@ function timeLeftMs() {
   return timer.paused ? timer.remainingMs : Math.max(0, timer.endsAt - Date.now());
 }
 
-function startRestTimer(exerciseName, seconds) {
+// subtitle: el ejercicio, o qué viene después si se usa desde el modo entrenar
+function startRestTimer(subtitle, seconds) {
   prepareSound();
 
   timer = {
@@ -253,7 +273,7 @@ function startRestTimer(exerciseName, seconds) {
     intervalId: setInterval(updateTimer, 250),
   };
 
-  timerExercise.textContent = exerciseName;
+  timerExercise.textContent = subtitle;
   timerPauseBtn.textContent = "Pausar";
   showTimerDone(false);
   updateTimer();
@@ -315,14 +335,14 @@ timerCloseBtn.addEventListener("click", () => restTimer.close());
 restTimer.addEventListener("close", () => {
   clearInterval(timer?.intervalId);
   timer = null;
-  releaseScreen();
+  if (!session) releaseScreen();
 });
 
 // Al volver a la app, actualizar enseguida y volver a pedir que no se apague la pantalla
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible" || !timer) return;
+  if (document.visibilityState !== "visible") return;
   updateTimer();
-  if (!timer.done) keepScreenOn();
+  if ((timer && !timer.done) || session) keepScreenOn();
 });
 
 // El celular solo deja reproducir sonido si se prepara durante un toque del usuario
@@ -352,19 +372,127 @@ function playBeeps() {
   });
 }
 
-// Evita que se apague la pantalla mientras corre el timer (si el navegador lo permite)
+// Evita que se apague la pantalla durante el timer o el modo entrenar (si el navegador lo permite)
 async function keepScreenOn() {
+  if (wakeLock && !wakeLock.released) return;
   try {
-    wakeLock = await navigator.wakeLock?.request("screen");
+    wakeLock = (await navigator.wakeLock?.request("screen")) ?? null;
   } catch {
     wakeLock = null;
   }
-  if (!timer) releaseScreen();
+  if (!timer && !session) releaseScreen();
 }
 
 function releaseScreen() {
   wakeLock?.release().catch(() => {});
   wakeLock = null;
 }
+
+// --- Modo entrenar ---
+
+// Entrenamiento en curso; null si no hay ninguno. set empieza en 1.
+let session = null;
+
+function startSession(workout) {
+  session = { workout, exerciseIndex: 0, set: 1, finished: false };
+  sessionTitle.textContent = workout.name;
+  renderSession();
+  sessionDialog.showModal();
+  keepScreenOn();
+}
+
+function renderSession() {
+  const { workout, exerciseIndex, set, finished } = session;
+  const exercise = workout.exercises[exerciseIndex];
+
+  sessionCurrent.hidden = finished;
+  sessionFinished.hidden = !finished;
+  sessionDoneBtn.textContent = finished ? "Terminar" : "Serie hecha ✓";
+
+  if (finished) {
+    sessionSummary.textContent = describeWorkout(workout);
+  } else {
+    sessionSet.textContent = `Serie ${set} de ${exercise.sets}`;
+    sessionExercise.textContent = exercise.name;
+    sessionReps.textContent = plural(exercise.reps, "repetición", "repeticiones");
+  }
+
+  // Lista de ejercicios con cuántas series van hechas de cada uno
+  const steps = workout.exercises.map((item, index) => {
+    let doneSets = 0;
+    if (finished || index < exerciseIndex) doneSets = item.sets;
+    else if (index === exerciseIndex) doneSets = set - 1;
+
+    const step = document.createElement("li");
+    step.className = "session-step";
+    step.classList.toggle("session-step--current", !finished && index === exerciseIndex);
+    step.classList.toggle("session-step--done", doneSets === item.sets);
+
+    const name = document.createElement("span");
+    name.className = "session-step__name";
+    name.textContent = item.name;
+
+    const count = document.createElement("span");
+    count.className = "session-step__count";
+    count.textContent = `${doneSets === item.sets ? "✓ " : ""}${doneSets}/${item.sets}`;
+
+    step.append(name, count);
+    return step;
+  });
+  sessionPlan.replaceChildren(...steps);
+}
+
+sessionDoneBtn.addEventListener("click", () => {
+  if (session.finished) {
+    sessionDialog.close();
+    return;
+  }
+
+  const { workout } = session;
+  const exercise = workout.exercises[session.exerciseIndex];
+  const isLastSet = session.set === exercise.sets;
+  const isLastExercise = session.exerciseIndex === workout.exercises.length - 1;
+
+  // Última serie del último ejercicio: no hay descanso, se termina
+  if (isLastSet && isLastExercise) {
+    session.finished = true;
+    renderSession();
+    return;
+  }
+
+  if (isLastSet) {
+    session.exerciseIndex += 1;
+    session.set = 1;
+  } else {
+    session.set += 1;
+  }
+  renderSession();
+
+  // Descanso del ejercicio recién hecho, avisando qué viene después
+  const next = workout.exercises[session.exerciseIndex];
+  startRestTimer(
+    `Siguiente: ${next.name} · serie ${session.set} de ${next.sets}`,
+    exercise.rest ?? DEFAULT_REST
+  );
+});
+
+function exitSession() {
+  const started = session.exerciseIndex > 0 || session.set > 1;
+  if (started && !session.finished && !confirm("¿Salir del entrenamiento? Se pierde el progreso.")) return;
+  sessionDialog.close();
+}
+
+sessionExitBtn.addEventListener("click", exitSession);
+
+// "Atrás" en el celular o Escape: pasar por la misma confirmación que "Salir"
+sessionDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  exitSession();
+});
+
+sessionDialog.addEventListener("close", () => {
+  session = null;
+  if (!timer) releaseScreen();
+});
 
 renderWorkouts();
