@@ -68,23 +68,28 @@
                maxlength="40" required pattern=".*\S.*" aria-label="Nombre del ejercicio">
         <button class="exercise-row__remove" type="button" aria-label="Quitar ejercicio">✕</button>
       </div>
-      <div class="exercise-row__numbers">
-        <label class="mini-field">
-          <input class="field__input exercise-row__sets" type="number" inputmode="numeric"
-                 min="1" max="20" value="3" required>
-          <span>series</span>
-        </label>
-        <label class="mini-field">
-          <input class="field__input exercise-row__reps" type="number" inputmode="numeric"
-                 min="1" max="100" value="10" required>
-          <span>reps</span>
-        </label>
+      <ol class="set-fields"></ol>
+      <div class="exercise-row__bottom">
+        <button class="btn-text exercise-row__add-set" type="button">+ Serie</button>
         <label class="mini-field">
           <input class="field__input exercise-row__rest" type="number" inputmode="numeric"
                  min="5" max="600" value="90" required aria-label="Descanso en segundos">
           <span>s desc.</span>
         </label>
       </div>
+    </li>
+  </template>
+
+  <!-- Molde de cada serie dentro de un ejercicio -->
+  <template id="set-row-template">
+    <li class="set-row">
+      <span class="set-row__label"></span>
+      <label class="mini-field">
+        <input class="field__input set-row__reps" type="number" inputmode="numeric"
+               min="1" max="100" value="10" required>
+        <span>reps</span>
+      </label>
+      <button class="set-row__remove" type="button" aria-label="Quitar serie">✕</button>
     </li>
   </template>
 

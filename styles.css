@@ -330,12 +330,41 @@ body {
   gap: 4px;
 }
 
-.exercise-row__numbers {
+/* Una fila por serie: "Serie 1  [10] reps  ✕" */
+.set-fields {
+  list-style: none;
+  padding: 0;
+  margin-top: 4px;
+}
+
+.set-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 8px;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.set-row__label {
+  width: 4.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.set-row .mini-field {
+  flex: 1;
+}
+
+.exercise-row__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.exercise-row__add-set:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .mini-field {
@@ -352,7 +381,8 @@ body {
   text-align: center;
 }
 
-.exercise-row__remove {
+.exercise-row__remove,
+.set-row__remove {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
@@ -364,7 +394,8 @@ body {
   cursor: pointer;
 }
 
-.exercise-row__remove:disabled {
+.exercise-row__remove:disabled,
+.set-row__remove:disabled {
   opacity: 0.3;
   cursor: default;
 }
