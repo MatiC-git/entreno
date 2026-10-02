@@ -88,6 +88,33 @@
     </li>
   </template>
 
+  <!-- Pantalla del modo entrenar -->
+  <dialog class="session" id="workout-session" aria-labelledby="session-title">
+    <header class="session__header">
+      <button class="btn-text" id="session-exit-btn" type="button">Salir</button>
+      <h2 class="session__title" id="session-title"></h2>
+    </header>
+
+    <div class="session__body">
+      <section class="session__current" id="session-current">
+        <p class="session__set" id="session-set"></p>
+        <p class="session__exercise" id="session-exercise"></p>
+        <p class="session__reps" id="session-reps"></p>
+      </section>
+
+      <section class="session__finished" id="session-finished" hidden>
+        <p class="session__finished-title">¡Entrenamiento completo!</p>
+        <p class="session__finished-text" id="session-summary"></p>
+      </section>
+
+      <ol class="session__plan" id="session-plan"></ol>
+    </div>
+
+    <footer class="session__footer">
+      <button class="btn btn--primary" id="session-done-btn" type="button">Serie hecha ✓</button>
+    </footer>
+  </dialog>
+
   <!-- Pantalla del timer de descanso -->
   <dialog class="timer" id="rest-timer" aria-labelledby="timer-label">
     <div class="timer__content">
