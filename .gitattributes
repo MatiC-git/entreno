@@ -1,0 +1,4 @@
+# Finales de línea: siempre LF (estilo Linux/Mac), también en Windows.
+# Evita los avisos "LF will be replaced by CRLF" y que un archivo aparezca
+# como modificado solo porque cambió el tipo de salto de línea.
+* text=auto eol=lf
