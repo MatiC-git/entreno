@@ -1,5 +1,6 @@
-// Clave con la que se guardan los entrenamientos en el navegador
+// Claves con las que se guardan los entrenamientos y el historial en el navegador
 const STORAGE_KEY = "entreno.workouts";
+const HISTORY_KEY = "entreno.history";
 
 // Descanso por defecto en segundos (también para entrenamientos guardados antes de tener este campo)
 const DEFAULT_REST = 90;
@@ -34,6 +35,13 @@ const sessionSummary = document.getElementById("session-summary");
 const sessionPlan = document.getElementById("session-plan");
 const sessionExitBtn = document.getElementById("session-exit-btn");
 const sessionDoneBtn = document.getElementById("session-done-btn");
+const exitDialog = document.getElementById("exit-dialog");
+const exitText = document.getElementById("exit-text");
+const historyBtn = document.getElementById("history-btn");
+const historyDialog = document.getElementById("history-dialog");
+const historyCloseBtn = document.getElementById("history-close-btn");
+const historyEmpty = document.getElementById("history-empty");
+const historyList = document.getElementById("history-list");
 const restTimer = document.getElementById("rest-timer");
 const timerExercise = document.getElementById("timer-exercise");
 const timerTime = document.getElementById("timer-time");
@@ -46,6 +54,9 @@ const timerSkipBtn = document.getElementById("timer-skip-btn");
 const timerCloseBtn = document.getElementById("timer-close-btn");
 
 let workouts = loadWorkouts();
+
+// Sesiones registradas, la más nueva primero ("history" no se usa: es un nombre del navegador)
+let historyEntries = loadHistory();
 
 // id del entrenamiento que se está editando; null si se está creando uno nuevo
 let editingId = null;
@@ -82,6 +93,23 @@ function saveWorkouts() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
   } catch {
     // Si el navegador no deja guardar, los datos quedan solo hasta recargar
+  }
+}
+
+function loadHistory() {
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory() {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyEntries));
+  } catch {
+    // Igual que con los entrenamientos: sin guardado, dura hasta recargar
   }
 }
 
@@ -179,9 +207,12 @@ function readWeight(input) {
   return input.value === "" ? null : Number(input.value);
 }
 
+function countSets(workout) {
+  return workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+}
+
 function describeWorkout(workout) {
-  const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
-  return `${plural(workout.exercises.length, "ejercicio", "ejercicios")} · ${plural(totalSets, "serie", "series")}`;
+  return `${plural(workout.exercises.length, "ejercicio", "ejercicios")} · ${plural(countSets(workout), "serie", "series")}`;
 }
 
 // --- Editor de entrenamiento ---
@@ -485,10 +516,18 @@ function releaseScreen() {
 // --- Modo entrenar ---
 
 // Entrenamiento en curso; null si no hay ninguno. set empieza en 1.
+// doneSets anota cada serie hecha para guardarla después en el historial.
 let session = null;
 
 function startSession(workout) {
-  session = { workout, exerciseIndex: 0, set: 1, finished: false };
+  session = {
+    workout,
+    exerciseIndex: 0,
+    set: 1,
+    finished: false,
+    startedAt: new Date().toISOString(),
+    doneSets: [],
+  };
   sessionTitle.textContent = workout.name;
   renderSession();
   sessionDialog.showModal();
@@ -554,15 +593,23 @@ sessionDoneBtn.addEventListener("click", () => {
   const exercise = workout.exercises[session.exerciseIndex];
 
   // Guardar el peso usado: la próxima vez esta serie arranca con ese valor
-  exercise.sets[session.set - 1].weight = readWeight(sessionWeight);
+  const currentSet = exercise.sets[session.set - 1];
+  currentSet.weight = readWeight(sessionWeight);
   saveWorkouts();
+
+  session.doneSets.push({
+    exerciseIndex: session.exerciseIndex,
+    reps: currentSet.reps,
+    weight: currentSet.weight,
+  });
 
   const isLastSet = session.set === exercise.sets.length;
   const isLastExercise = session.exerciseIndex === workout.exercises.length - 1;
 
-  // Última serie del último ejercicio: no hay descanso, se termina
+  // Última serie del último ejercicio: no hay descanso, se termina y queda en el historial
   if (isLastSet && isLastExercise) {
     session.finished = true;
+    saveSessionToHistory(true);
     renderSession();
     return;
   }
@@ -583,11 +630,56 @@ sessionDoneBtn.addEventListener("click", () => {
   );
 });
 
-function exitSession() {
-  const started = session.exerciseIndex > 0 || session.set > 1;
-  if (started && !session.finished && !confirm("¿Salir del entrenamiento? Se pierde el progreso.")) return;
-  sessionDialog.close();
+// Copia lo hecho al historial. Es una copia: editar o borrar el entrenamiento después no la cambia.
+// completed = false cuando se sale a la mitad y se elige "Guardar y salir".
+function saveSessionToHistory(completed) {
+  const { workout, doneSets, startedAt } = session;
+
+  const exercises = workout.exercises
+    .map((exercise, index) => ({
+      name: exercise.name,
+      sets: doneSets
+        .filter((done) => done.exerciseIndex === index)
+        .map(({ reps, weight }) => ({ reps, weight })),
+    }))
+    .filter((exercise) => exercise.sets.length > 0);
+
+  historyEntries.unshift({
+    id: String(Date.now()),
+    workoutId: workout.id,
+    workoutName: workout.name,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    completed,
+    plannedSets: countSets(workout),
+    exercises,
+  });
+  saveHistory();
 }
+
+// Sin series hechas (o ya terminado) no hay nada que guardar: sale directo.
+// Si no, pregunta: guardar y salir, salir sin guardar o seguir entrenando.
+function exitSession() {
+  if (session.finished || session.doneSets.length === 0) {
+    sessionDialog.close();
+    return;
+  }
+
+  const planned = plural(countSets(session.workout), "serie", "series");
+  exitText.textContent = `Hiciste ${session.doneSets.length} de ${planned}.`;
+  exitDialog.returnValue = "";
+  exitDialog.showModal();
+}
+
+// returnValue es el "value" del botón tocado; vacío si se cerró con Escape/atrás (= seguir)
+exitDialog.addEventListener("close", () => {
+  if (exitDialog.returnValue === "save") {
+    saveSessionToHistory(false);
+    sessionDialog.close();
+  } else if (exitDialog.returnValue === "discard") {
+    sessionDialog.close();
+  }
+});
 
 sessionExitBtn.addEventListener("click", exitSession);
 
@@ -602,5 +694,94 @@ sessionDialog.addEventListener("close", () => {
   if (!timer) releaseScreen();
   renderWorkouts(); // las tarjetas muestran los pesos actualizados
 });
+
+// --- Historial ---
+
+const historyDateFormat = new Intl.DateTimeFormat("es-AR", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23", // "21:33" en vez de "09:33 p. m."
+});
+
+// 42 → "42 min", 75 → "1 h 15 min"
+function formatDuration(startedAt, finishedAt) {
+  const minutes = Math.max(1, Math.round((new Date(finishedAt) - new Date(startedAt)) / 60000));
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+// Una serie del historial: "10 × 40 kg", o "10 reps" si no tenía peso
+function describeDoneSet(set) {
+  return set.weight == null ? `${set.reps} reps` : `${set.reps} × ${formatWeight(set.weight)} kg`;
+}
+
+function renderHistory() {
+  historyEmpty.hidden = historyEntries.length > 0;
+  historyList.replaceChildren(...historyEntries.map(renderHistoryEntry));
+}
+
+// Cada sesión es un <details>: al tocar el resumen se despliega el detalle por ejercicio
+function renderHistoryEntry(entry) {
+  const doneSets = entry.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+
+  const item = document.createElement("li");
+  item.className = "history-entry";
+
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.className = "history-entry__summary";
+
+  const title = document.createElement("span");
+  title.className = "history-entry__title";
+  title.textContent = entry.workoutName;
+
+  const meta = document.createElement("span");
+  meta.className = "history-entry__meta";
+  meta.textContent = [
+    historyDateFormat.format(new Date(entry.finishedAt)),
+    formatDuration(entry.startedAt, entry.finishedAt),
+    entry.completed ? plural(doneSets, "serie", "series") : `${doneSets}/${entry.plannedSets} series`,
+  ].join(" · ");
+
+  summary.append(title);
+  if (!entry.completed) {
+    const badge = document.createElement("span");
+    badge.className = "history-entry__badge";
+    badge.textContent = "Incompleto";
+    summary.append(badge);
+  }
+  summary.append(meta);
+
+  const exerciseList = document.createElement("ul");
+  exerciseList.className = "history-entry__exercises";
+  for (const exercise of entry.exercises) {
+    const line = document.createElement("li");
+
+    const name = document.createElement("span");
+    name.className = "history-entry__exercise";
+    name.textContent = exercise.name;
+
+    const sets = document.createElement("span");
+    sets.className = "history-entry__sets";
+    sets.textContent = exercise.sets.map(describeDoneSet).join(" · ");
+
+    line.append(name, sets);
+    exerciseList.append(line);
+  }
+
+  details.append(summary, exerciseList);
+  item.append(details);
+  return item;
+}
+
+historyBtn.addEventListener("click", () => {
+  renderHistory();
+  historyDialog.showModal();
+});
+
+historyCloseBtn.addEventListener("click", () => historyDialog.close());
 
 renderWorkouts();
