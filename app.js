@@ -904,3 +904,10 @@ importInput.addEventListener("change", () => {
 });
 
 renderWorkouts();
+
+// --- App instalable (PWA) ---
+
+// El service worker solo funciona con https o localhost; abriendo el archivo directo falla y lo ignoramos
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
