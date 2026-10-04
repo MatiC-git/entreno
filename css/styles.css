@@ -10,6 +10,9 @@
   --accent-text: #ffffff;
   --radius: 14px;
   --gutter: 16px;
+  --shadow: 0 4px 20px rgb(0 0 0 / 0.12);
+  /* Lugar que hay que dejar abajo para que la barra inferior no tape el contenido */
+  --nav-space: calc(88px + env(safe-area-inset-bottom));
 }
 
 /* Modo oscuro según la configuración del celular */
@@ -21,6 +24,7 @@
     --text-muted: #9aa2ad;
     --border: #2c323b;
     --danger: #ff6b6b;
+    --shadow: 0 4px 20px rgb(0 0 0 / 0.5);
   }
 }
 
@@ -39,28 +43,189 @@ body {
   line-height: 1.5;
 }
 
-/* Encabezado */
+/* Íconos: líneas que toman el color del texto */
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Encabezado: logo al centro y perfil a la derecha.
+   Tres columnas iguales a los costados para que el logo quede justo en el medio. */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  padding: 12px var(--gutter);
+  padding-top: calc(12px + env(safe-area-inset-top));
+  background: var(--bg);
+}
+
+.app-header__logo {
+  grid-column: 2;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.profile-btn {
+  grid-column: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Contenido: el espacio de abajo es para la barra inferior */
+.app-main {
+  flex: 1;
+  padding: 0 var(--gutter) var(--nav-space);
+}
+
+.view__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--gutter);
+  gap: 12px;
+  min-height: 48px;
+  margin-bottom: 12px;
 }
 
-.app-header h1 {
-  font-size: 1.75rem;
+.view__title {
+  font-size: 1.5rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
-/* Contenido */
-.app-main {
-  flex: 1;
-  padding: 0 var(--gutter);
+.view__subtitle {
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Botón chico y redondeado, para acciones en el encabezado de una sección */
+.btn-pill {
+  min-height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-pill:active {
+  transform: scale(0.97);
+}
+
+/* Barra inferior flotante. La sección activa se muestra en una píldora naranja con su nombre;
+   las demás, solo con el ícono. */
+.nav-bar {
+  position: fixed;
+  z-index: 1;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  /* Compacta: tan ancha como sus botones (como Pasito), nunca más que la pantalla */
+  width: max-content;
+  max-width: calc(100% - 2 * var(--gutter));
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.nav-bar__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* En celulares angostos el nombre se recorta con "…" en vez de desbordar la barra */
+.nav-bar__label {
+  display: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-bar__item--active {
+  min-width: 0;
+  padding: 0 16px;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.nav-bar__item--active .nav-bar__label {
+  display: inline;
+}
+
+/* Tarjeta: el fondo y las esquinas de todos los bloques de la app */
+.card {
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* Botón ⋮ que abre el menú de acciones */
+.menu-btn {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.menu-btn:active {
+  background: var(--bg);
 }
 
 .empty-state {
-  margin-top: 25vh;
+  margin-top: 20vh;
   text-align: center;
 }
 
@@ -81,13 +246,23 @@ body {
 .workout-card {
   margin-bottom: 12px;
   padding-bottom: var(--gutter);
-  border-radius: var(--radius);
-  background: var(--surface);
+}
+
+/* Arriba: nombre y resumen (abre el editor) + menú ⋮ */
+.workout-card__head {
+  display: flex;
+  align-items: flex-start;
+  padding-right: 8px;
+}
+
+.workout-card__head .menu-btn {
+  margin-top: 8px;
 }
 
 .workout-card__open {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: var(--gutter);
   border: none;
   background: none;
@@ -166,15 +341,6 @@ body {
   display: block;
   width: calc(100% - 2 * var(--gutter));
   margin: 4px var(--gutter) 0;
-}
-
-/* Botón fijo abajo, cómodo para el pulgar */
-.app-footer {
-  position: sticky;
-  bottom: 0;
-  padding: var(--gutter);
-  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
-  background: var(--bg);
 }
 
 .btn {
@@ -319,8 +485,6 @@ body {
 .exercise-row {
   margin-bottom: 12px;
   padding: 12px;
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .exercise-row .field__input {
@@ -436,7 +600,6 @@ body {
 
 /* Modo entrenar: pantalla completa con la serie actual en grande */
 .session,
-.history,
 .picker {
   width: 100%;
   max-width: 480px;
@@ -450,20 +613,17 @@ body {
 }
 
 .session[open],
-.history[open],
 .picker[open] {
   display: flex;
   flex-direction: column;
 }
 
 .session::backdrop,
-.history::backdrop,
 .picker::backdrop {
   background: rgb(0 0 0 / 0.5);
 }
 
 .session__header,
-.history__header,
 .picker__header {
   display: flex;
   align-items: center;
@@ -472,14 +632,12 @@ body {
 }
 
 .session__title,
-.history__title,
 .picker__title {
   font-size: 1.125rem;
   font-weight: 700;
 }
 
 .session__body,
-.history__body,
 .picker__body {
   flex: 1;
   overflow-y: auto;
@@ -619,16 +777,33 @@ body {
   padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
 }
 
-/* Ventanita para elegir qué hacer al salir de un entrenamiento */
+/* Hoja inferior: sube desde abajo con opciones (salir del entrenamiento, menú ⋮, etc.) */
 .sheet {
-  width: calc(100% - 2 * var(--gutter));
-  max-width: 400px;
-  margin: auto;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85dvh;
+  margin: auto auto 0;
   padding: 0;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 20px 20px 0 0;
   background: var(--surface);
   color: var(--text);
+}
+
+.sheet[open] {
+  animation: sheet-up 0.2s ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet[open] {
+    animation: none;
+  }
 }
 
 .sheet::backdrop {
@@ -639,7 +814,46 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 20px var(--gutter) var(--gutter);
+  padding: 8px var(--gutter) calc(var(--gutter) + env(safe-area-inset-bottom));
+}
+
+/* Rayita de arriba que identifica a la hoja */
+.sheet__form::before {
+  content: "";
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+/* Lista de acciones del menú ⋮ */
+.sheet__menu {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.menu-item {
+  min-height: 52px;
+  padding: 0 4px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:active {
+  opacity: 0.6;
+}
+
+.menu-item--danger {
+  color: var(--danger);
 }
 
 .sheet__title {
@@ -656,32 +870,9 @@ body {
   background: var(--bg);
 }
 
-/* Historial: una tarjeta por sesión, que se despliega al tocarla */
-.history__body {
-  padding-bottom: var(--gutter);
-}
-
-/* Abajo: aviso de dónde viven los datos + Exportar / Importar */
-.history__footer {
-  padding: var(--gutter);
-  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-}
-
-.history__footer-text {
-  margin-bottom: 12px;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-}
-
-.history__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
+/* Informe: por ahora, el historial. Una tarjeta por sesión, que se despliega al tocarla */
 .history__empty {
-  margin-top: 20vh;
+  margin: 10vh 0;
   text-align: center;
   color: var(--text-muted);
 }
@@ -693,8 +884,67 @@ body {
 
 .history-entry {
   margin-bottom: 12px;
-  border-radius: var(--radius);
-  background: var(--surface);
+}
+
+/* Al final del informe: aviso de dónde viven los datos + Exportar / Importar */
+.backup {
+  margin-top: 24px;
+  padding: var(--gutter);
+}
+
+.backup__text {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.backup__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.backup .btn--ghost {
+  background: var(--bg);
+}
+
+/* Perfil (y cualquier sección futura): aviso de "Próximamente" */
+.coming-soon {
+  margin-top: 10vh;
+  padding: 32px var(--gutter);
+  text-align: center;
+}
+
+.coming-soon__icon {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+}
+
+.coming-soon__title {
+  margin-top: 8px;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.coming-soon__text {
+  color: var(--text-muted);
+}
+
+/* Sección Ejercicios: buscador arriba, la misma lista que el selector del editor */
+.directory__search {
+  margin-bottom: 8px;
+}
+
+.credit {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.credit a {
+  color: inherit;
 }
 
 .history-entry__summary {
@@ -786,10 +1036,14 @@ body {
   color: var(--text);
   font: inherit;
   text-align: left;
+}
+
+/* En la sección Ejercicios no se elige nada: solo el selector del editor usa botones */
+button.picker-item {
   cursor: pointer;
 }
 
-.picker-item:active {
+button.picker-item:active {
   opacity: 0.6;
 }
 
