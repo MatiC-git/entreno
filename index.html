@@ -156,6 +156,19 @@
       </p>
       <ul class="history-list" id="history-list"></ul>
     </div>
+
+    <footer class="history__footer">
+      <p class="history__footer-text">
+        Tus datos se guardan solo en este navegador. Exportalos para tener un backup
+        o pasarlos a otro dispositivo.
+      </p>
+      <div class="history__actions">
+        <button class="btn btn--ghost" id="export-btn" type="button">Exportar</button>
+        <button class="btn btn--ghost" id="import-btn" type="button">Importar</button>
+      </div>
+      <!-- Oculto: "Importar" lo abre para elegir el archivo -->
+      <input id="import-input" type="file" accept=".json,application/json" hidden>
+    </footer>
   </dialog>
 
   <!-- Pantalla del timer de descanso -->

@@ -42,6 +42,9 @@ const historyDialog = document.getElementById("history-dialog");
 const historyCloseBtn = document.getElementById("history-close-btn");
 const historyEmpty = document.getElementById("history-empty");
 const historyList = document.getElementById("history-list");
+const exportBtn = document.getElementById("export-btn");
+const importBtn = document.getElementById("import-btn");
+const importInput = document.getElementById("import-input");
 const restTimer = document.getElementById("rest-timer");
 const timerExercise = document.getElementById("timer-exercise");
 const timerTime = document.getElementById("timer-time");
@@ -67,13 +70,15 @@ function loadWorkouts() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const list = saved ? JSON.parse(saved) : [];
-    return list.map((workout) => ({
-      ...workout,
-      exercises: workout.exercises.map(migrateExercise),
-    }));
+    return list.map(migrateWorkout);
   } catch {
     return [];
   }
+}
+
+// Pasa al formato actual un entrenamiento guardado (o importado) con un formato viejo
+function migrateWorkout(workout) {
+  return { ...workout, exercises: workout.exercises.map(migrateExercise) };
 }
 
 // Antes cada ejercicio guardaba la cantidad de series y unas reps para todas
@@ -783,5 +788,78 @@ historyBtn.addEventListener("click", () => {
 });
 
 historyCloseBtn.addEventListener("click", () => historyDialog.close());
+
+// --- Exportar e importar (backup) ---
+
+// "2026-10-02" con la fecha local (toISOString usa UTC y de noche daría el día siguiente)
+function localDateStamp(date = new Date()) {
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Descarga un .json con los entrenamientos y el historial
+function exportData() {
+  const data = {
+    app: "entreno",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    workouts,
+    history: historyEntries,
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `entreno-backup-${localDateStamp()}.json`;
+  link.click();
+
+  // Se libera después, para no cortar la descarga en algunos navegadores
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Lee el texto del archivo y chequea que sea un backup de entreno; si no, tira un error
+function parseBackup(text) {
+  const data = JSON.parse(text);
+  const valid =
+    data?.app === "entreno" &&
+    Array.isArray(data.workouts) &&
+    Array.isArray(data.history) &&
+    data.workouts.every((workout) => typeof workout.name === "string" && Array.isArray(workout.exercises));
+
+  if (!valid) throw new Error("No es un backup de entreno");
+  return data;
+}
+
+async function importData(file) {
+  let data;
+  try {
+    data = parseBackup(await file.text());
+  } catch {
+    alert("Ese archivo no es un backup válido de entreno.");
+    return;
+  }
+
+  const summary =
+    `${plural(data.workouts.length, "entrenamiento", "entrenamientos")} y ` +
+    `${plural(data.history.length, "sesión", "sesiones")} de historial`;
+  if (!confirm(`¿Reemplazar todo con este backup (${summary})? Lo que hay ahora en este navegador se pierde.`)) return;
+
+  workouts = data.workouts.map(migrateWorkout);
+  historyEntries = data.history;
+  saveWorkouts();
+  saveHistory();
+  renderWorkouts();
+  renderHistory();
+}
+
+exportBtn.addEventListener("click", exportData);
+importBtn.addEventListener("click", () => importInput.click());
+
+importInput.addEventListener("change", () => {
+  const file = importInput.files[0];
+  importInput.value = ""; // así se puede volver a elegir el mismo archivo
+  if (file) importData(file);
+});
 
 renderWorkouts();

@@ -595,7 +595,26 @@ body {
 
 /* Historial: una tarjeta por sesión, que se despliega al tocarla */
 .history__body {
+  padding-bottom: var(--gutter);
+}
+
+/* Abajo: aviso de dónde viven los datos + Exportar / Importar */
+.history__footer {
+  padding: var(--gutter);
   padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
+
+.history__footer-text {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.history__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .history__empty {
@@ -763,10 +782,10 @@ body {
   display: none;
 }
 
-/* En pantallas grandes, centrar el contenido como si fuera un celular */
-@media (min-width: 600px) {
-  body {
-    max-width: 480px;
-    margin: 0 auto;
-  }
+/* En pantallas más anchas que un celular, centrar el contenido con el mismo
+   ancho máximo que las pantallas que se abren encima (480px). Antes empezaba
+   recién en 600px y entre 481 y 599px la app asomaba a los costados. */
+body {
+  max-width: 480px;
+  margin: 0 auto;
 }
