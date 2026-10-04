@@ -33,6 +33,12 @@ const sessionImage = document.getElementById("session-image");
 const sessionImageImg = document.getElementById("session-image-img");
 const sessionImageCredit = document.getElementById("session-image-credit");
 const exerciseCatalogList = document.getElementById("exercise-catalog");
+const picker = document.getElementById("exercise-picker");
+const pickerCancelBtn = document.getElementById("picker-cancel-btn");
+const pickerSearch = document.getElementById("picker-search");
+const pickerBody = document.getElementById("picker-body");
+const pickerEmpty = document.getElementById("picker-empty");
+const pickerList = document.getElementById("picker-list");
 const sessionReps = document.getElementById("session-reps");
 const sessionWeight = document.getElementById("session-weight");
 const sessionFinished = document.getElementById("session-finished");
@@ -242,6 +248,10 @@ function addExerciseRow(exercise) {
   row.querySelector(".exercise-row__remove").addEventListener("click", () => {
     row.remove();
     updateExerciseButtons();
+  });
+
+  row.querySelector(".exercise-row__pick").addEventListener("click", () => {
+    openPicker(row.querySelector(".exercise-row__name"));
   });
 
   row.querySelector(".exercise-row__up").addEventListener("click", (event) => {
@@ -914,6 +924,9 @@ importInput.addEventListener("change", () => {
 // Clave: el nombre normalizado (o un alias); valor: { name, image, author, license }.
 const exerciseCatalog = new Map();
 
+// Los mismos ejercicios en orden alfabético, una vez cada uno (el Map repite los que tienen alias)
+let exerciseEntries = [];
+
 // "Press de Banca " → "press de banca": sin mayúsculas, tildes ni espacios de más
 function normalizeName(name) {
   return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -923,6 +936,7 @@ async function loadExerciseCatalog() {
   try {
     const response = await fetch("data/exercises-es.json");
     const entries = await response.json();
+    exerciseEntries = entries;
 
     for (const entry of entries) {
       for (const name of [entry.name, ...entry.aliases]) {
@@ -960,6 +974,94 @@ function showExerciseImage(name) {
 // Si la imagen no carga (ej: sin internet y nunca se vio antes), se oculta en vez de mostrarse rota
 sessionImageImg.addEventListener("error", () => {
   sessionImage.hidden = true;
+});
+
+// --- Directorio de ejercicios (elegir uno del catálogo) ---
+
+// Campo del nombre que completa el directorio abierto; null si está cerrado
+let pickerTarget = null;
+
+// Arranca buscando lo que ya esté escrito, así se puede cambiar por la versión del catálogo
+function openPicker(nameInput) {
+  pickerTarget = nameInput;
+  pickerSearch.value = nameInput.value.trim();
+  renderPicker();
+  picker.showModal();
+  pickerBody.scrollTop = 0;
+  pickerSearch.focus();
+  pickerSearch.select();
+}
+
+// "press banca" encuentra "Press de banca": cada palabra buscada tiene que aparecer en el nombre o un alias
+function matchesSearch(entry, words) {
+  const names = [entry.name, ...entry.aliases].map(normalizeName);
+  return words.every((word) => names.some((name) => name.includes(word)));
+}
+
+function renderPicker() {
+  const search = normalizeName(pickerSearch.value);
+  const words = search.split(" ").filter(Boolean);
+  const results = exerciseEntries.filter((entry) => matchesSearch(entry, words));
+
+  pickerList.replaceChildren(...results.map(renderPickerItem));
+  pickerEmpty.hidden = results.length > 0;
+  if (exerciseEntries.length === 0) {
+    pickerEmpty.textContent = "No se pudo cargar el directorio. Escribí el nombre a mano.";
+  } else {
+    pickerEmpty.textContent = `No hay ejercicios con "${pickerSearch.value.trim()}". Podés cerrar y escribirlo a mano.`;
+  }
+}
+
+function renderPickerItem(entry) {
+  const item = document.createElement("li");
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "picker-item";
+  button.addEventListener("click", () => pickExercise(entry));
+
+  // loading="lazy": solo se descargan las imágenes que llegan a verse al bajar
+  const image = document.createElement("img");
+  image.className = "picker-item__image";
+  image.src = entry.image;
+  image.alt = "";
+  image.loading = "lazy";
+  image.width = 56;
+  image.height = 56;
+  image.addEventListener("error", () => {
+    image.style.visibility = "hidden";
+  });
+
+  const name = document.createElement("span");
+  name.className = "picker-item__name";
+  name.textContent = entry.name;
+
+  button.append(image, name);
+  item.append(button);
+  return item;
+}
+
+function pickExercise(entry) {
+  pickerTarget.value = entry.name;
+  picker.close();
+}
+
+pickerSearch.addEventListener("input", () => {
+  renderPicker();
+  pickerBody.scrollTop = 0;
+});
+
+// Enter en el teclado del celular: elegir el primer resultado
+pickerSearch.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  pickerList.querySelector(".picker-item")?.click();
+});
+
+pickerCancelBtn.addEventListener("click", () => picker.close());
+
+picker.addEventListener("close", () => {
+  pickerTarget = null;
 });
 
 renderWorkouts();
