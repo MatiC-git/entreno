@@ -11,25 +11,124 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <!-- Íconos: cada uno se usa con <svg class="icon"><use href="#icon-..."></use></svg> -->
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="icon-workouts" viewBox="0 0 24 24">
+      <path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/>
+    </symbol>
+    <symbol id="icon-exercises" viewBox="0 0 24 24">
+      <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>
+    </symbol>
+    <symbol id="icon-report" viewBox="0 0 24 24">
+      <path d="M3 20h18M6 16v-4M11 16V6M16 16v-7"/>
+    </symbol>
+    <symbol id="icon-profile" viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>
+    </symbol>
+    <symbol id="icon-more" viewBox="0 0 24 24">
+      <path d="M12 5h.01M12 12h.01M12 19h.01"/>
+    </symbol>
+  </svg>
+
+  <!-- Encabezado: logo al centro y perfil a la derecha -->
   <header class="app-header">
-    <h1>entreno</h1>
-    <button class="btn-text" id="history-btn" type="button">Historial</button>
+    <h1 class="app-header__logo">entreno</h1>
+    <button class="profile-btn" type="button" data-open-view="perfil" aria-label="Perfil">
+      <svg class="icon"><use href="#icon-profile"></use></svg>
+    </button>
   </header>
 
+  <!-- Una sección por cada botón de la barra inferior; app.js muestra solo la activa -->
   <main class="app-main">
-    <section class="empty-state" id="empty-state">
-      <p class="empty-state__title">Todavía no tenés entrenamientos</p>
-      <p class="empty-state__text">Creá el primero para empezar.</p>
+    <section class="view" data-view="entrenamientos" aria-labelledby="workouts-title">
+      <header class="view__header">
+        <h2 class="view__title" id="workouts-title">Entrenamientos</h2>
+        <button class="btn-pill" id="new-workout-btn" type="button">+ Nuevo</button>
+      </header>
+
+      <div class="empty-state" id="empty-state">
+        <p class="empty-state__title">Todavía no tenés entrenamientos</p>
+        <p class="empty-state__text">Creá el primero con "+ Nuevo".</p>
+      </div>
+
+      <ul class="workout-list" id="workout-list"></ul>
     </section>
 
-    <ul class="workout-list" id="workout-list"></ul>
+    <!-- Directorio de ejercicios: el mismo catálogo que el selector del editor -->
+    <section class="view" data-view="ejercicios" aria-labelledby="exercises-title" hidden>
+      <header class="view__header">
+        <h2 class="view__title" id="exercises-title">Ejercicios</h2>
+      </header>
+
+      <input class="field__input directory__search" id="directory-search" type="search"
+             placeholder="Buscar…" autocomplete="off" aria-label="Buscar ejercicio">
+      <p class="picker__empty" id="directory-empty" hidden></p>
+      <ul class="picker-list" id="directory-list"></ul>
+
+      <p class="credit">
+        Imágenes de <a href="https://wger.de" target="_blank" rel="noopener">wger.de</a> (Creative Commons)
+      </p>
+    </section>
+
+    <!-- Informe: por ahora muestra el historial (el informe con totales llega en otro issue) -->
+    <section class="view" data-view="informe" aria-labelledby="report-title" hidden>
+      <header class="view__header">
+        <h2 class="view__title" id="report-title">Informe</h2>
+      </header>
+
+      <h3 class="view__subtitle">Historial</h3>
+      <p class="history__empty" id="history-empty">
+        Todavía no registraste entrenamientos. Se guardan al terminar uno con "Empezar".
+      </p>
+      <ul class="history-list" id="history-list"></ul>
+
+      <div class="backup card">
+        <p class="backup__text">
+          Tus datos se guardan solo en este navegador. Exportalos para tener un backup
+          o pasarlos a otro dispositivo.
+        </p>
+        <div class="backup__actions">
+          <button class="btn btn--ghost" id="export-btn" type="button">Exportar</button>
+          <button class="btn btn--ghost" id="import-btn" type="button">Importar</button>
+        </div>
+        <!-- Oculto: "Importar" lo abre para elegir el archivo -->
+        <input id="import-input" type="file" accept=".json,application/json" hidden>
+      </div>
+    </section>
+
+    <section class="view" data-view="perfil" aria-labelledby="profile-title" hidden>
+      <header class="view__header">
+        <h2 class="view__title" id="profile-title">Perfil</h2>
+      </header>
+
+      <div class="coming-soon card">
+        <svg class="icon coming-soon__icon"><use href="#icon-profile"></use></svg>
+        <p class="coming-soon__title">Próximamente</p>
+        <p class="coming-soon__text">Acá vas a poder ver y ajustar tus datos.</p>
+      </div>
+    </section>
   </main>
 
-  <footer class="app-footer">
-    <button class="btn btn--primary" id="new-workout-btn" type="button">
-      + Nuevo entrenamiento
+  <!-- Barra inferior: la sección activa se resalta en una "píldora" con su nombre -->
+  <nav class="nav-bar" aria-label="Secciones">
+    <button class="nav-bar__item" type="button" data-open-view="entrenamientos" aria-label="Entrenamientos">
+      <svg class="icon"><use href="#icon-workouts"></use></svg>
+      <span class="nav-bar__label" aria-hidden="true">Entrenamientos</span>
     </button>
-  </footer>
+    <button class="nav-bar__item" type="button" data-open-view="ejercicios" aria-label="Ejercicios">
+      <svg class="icon"><use href="#icon-exercises"></use></svg>
+      <span class="nav-bar__label" aria-hidden="true">Ejercicios</span>
+    </button>
+    <button class="nav-bar__item" type="button" data-open-view="informe" aria-label="Informe">
+      <svg class="icon"><use href="#icon-report"></use></svg>
+      <span class="nav-bar__label" aria-hidden="true">Informe</span>
+    </button>
+    <button class="nav-bar__item" type="button" data-open-view="perfil" aria-label="Perfil">
+      <svg class="icon"><use href="#icon-profile"></use></svg>
+      <span class="nav-bar__label" aria-hidden="true">Perfil</span>
+    </button>
+  </nav>
 
   <!-- Pantalla para crear o editar un entrenamiento -->
   <dialog class="editor" id="workout-editor" aria-labelledby="editor-title">
@@ -69,7 +168,7 @@
 
   <!-- Molde de cada ejercicio; app.js lo copia cada vez que se agrega uno -->
   <template id="exercise-row-template">
-    <li class="exercise-row">
+    <li class="exercise-row card">
       <div class="exercise-row__top">
         <!-- maxlength 60: el nombre más largo del catálogo tiene 60 letras -->
         <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
@@ -184,32 +283,13 @@
     </form>
   </dialog>
 
-  <!-- Pantalla del historial -->
-  <dialog class="history" id="history-dialog" aria-labelledby="history-title">
-    <header class="history__header">
-      <button class="btn-text" id="history-close-btn" type="button">Cerrar</button>
-      <h2 class="history__title" id="history-title">Historial</h2>
-    </header>
-
-    <div class="history__body">
-      <p class="history__empty" id="history-empty">
-        Todavía no registraste entrenamientos. Se guardan al terminar uno con "Empezar".
-      </p>
-      <ul class="history-list" id="history-list"></ul>
-    </div>
-
-    <footer class="history__footer">
-      <p class="history__footer-text">
-        Tus datos se guardan solo en este navegador. Exportalos para tener un backup
-        o pasarlos a otro dispositivo.
-      </p>
-      <div class="history__actions">
-        <button class="btn btn--ghost" id="export-btn" type="button">Exportar</button>
-        <button class="btn btn--ghost" id="import-btn" type="button">Importar</button>
-      </div>
-      <!-- Oculto: "Importar" lo abre para elegir el archivo -->
-      <input id="import-input" type="file" accept=".json,application/json" hidden>
-    </footer>
+  <!-- Menú ⋮: hoja inferior con acciones; app.js arma los botones y cada uno la cierra con su "value" -->
+  <dialog class="sheet" id="action-menu" aria-labelledby="action-menu-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="action-menu-title"></h2>
+      <div class="sheet__menu" id="action-menu-items"></div>
+      <button class="btn btn--ghost" value="">Cancelar</button>
+    </form>
   </dialog>
 
   <!-- Pantalla del timer de descanso -->

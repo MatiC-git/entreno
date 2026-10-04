@@ -48,9 +48,14 @@ const sessionExitBtn = document.getElementById("session-exit-btn");
 const sessionDoneBtn = document.getElementById("session-done-btn");
 const exitDialog = document.getElementById("exit-dialog");
 const exitText = document.getElementById("exit-text");
-const historyBtn = document.getElementById("history-btn");
-const historyDialog = document.getElementById("history-dialog");
-const historyCloseBtn = document.getElementById("history-close-btn");
+const views = [...document.querySelectorAll(".view")];
+const viewButtons = [...document.querySelectorAll("[data-open-view]")];
+const directorySearch = document.getElementById("directory-search");
+const directoryEmpty = document.getElementById("directory-empty");
+const directoryList = document.getElementById("directory-list");
+const actionMenu = document.getElementById("action-menu");
+const actionMenuTitle = document.getElementById("action-menu-title");
+const actionMenuItems = document.getElementById("action-menu-items");
 const historyEmpty = document.getElementById("history-empty");
 const historyList = document.getElementById("history-list");
 const exportBtn = document.getElementById("export-btn");
@@ -141,7 +146,7 @@ function renderWorkouts() {
 
   for (const workout of workouts) {
     const card = document.createElement("li");
-    card.className = "workout-card";
+    card.className = "workout-card card";
 
     // La parte de arriba es un botón: al tocarla se abre el editor con sus datos
     const openBtn = document.createElement("button");
@@ -158,6 +163,14 @@ function renderWorkouts() {
     summary.textContent = describeWorkout(workout);
 
     openBtn.append(title, summary);
+
+    const head = document.createElement("div");
+    head.className = "workout-card__head";
+    head.append(openBtn, createMenuButton(workout.name, [
+      { label: "Editar", action: () => openEditor(workout) },
+      { label: "Duplicar", action: () => duplicateWorkout(workout) },
+      { label: "Borrar", danger: true, action: () => deleteWorkout(workout) },
+    ]));
 
     // Lista de ejercicios, cada uno con su botón de descanso
     const exerciseList = document.createElement("ul");
@@ -194,7 +207,7 @@ function renderWorkouts() {
     startBtn.textContent = "Empezar";
     startBtn.addEventListener("click", () => startSession(workout));
 
-    card.append(openBtn, exerciseList, startBtn);
+    card.append(head, exerciseList, startBtn);
     workoutList.append(card);
   }
 }
@@ -405,24 +418,31 @@ form.addEventListener("submit", (event) => {
   editor.close();
 });
 
-// Usa lo guardado, no lo que esté escrito en el formulario: los cambios sin guardar no pasan a la copia
-duplicateWorkoutBtn.addEventListener("click", () => {
-  const workout = workouts.find((item) => item.id === editingId);
-  if (!workout) return;
-
+function duplicateWorkout(workout) {
   openEditor(workout, { asCopy: true });
   workoutNameInput.focus();
   workoutNameInput.select();
+}
+
+// Devuelve false si el usuario se arrepiente en la confirmación
+function deleteWorkout(workout) {
+  if (!confirm(`¿Borrar "${workout.name}"? No se puede deshacer.`)) return false;
+
+  workouts = workouts.filter((item) => item.id !== workout.id);
+  saveWorkouts();
+  renderWorkouts();
+  return true;
+}
+
+// Usa lo guardado, no lo que esté escrito en el formulario: los cambios sin guardar no pasan a la copia
+duplicateWorkoutBtn.addEventListener("click", () => {
+  const workout = workouts.find((item) => item.id === editingId);
+  if (workout) duplicateWorkout(workout);
 });
 
 deleteWorkoutBtn.addEventListener("click", () => {
   const workout = workouts.find((item) => item.id === editingId);
-  if (!workout || !confirm(`¿Borrar "${workout.name}"? No se puede deshacer.`)) return;
-
-  workouts = workouts.filter((item) => item.id !== editingId);
-  saveWorkouts();
-  renderWorkouts();
-  editor.close();
+  if (workout && deleteWorkout(workout)) editor.close();
 });
 
 // --- Timer de descanso ---
@@ -754,6 +774,7 @@ sessionDialog.addEventListener("close", () => {
   session = null;
   if (!timer) releaseScreen();
   renderWorkouts(); // las tarjetas muestran los pesos actualizados
+  renderHistory(); // y el informe, la sesión recién guardada
 });
 
 // --- Historial ---
@@ -789,7 +810,7 @@ function renderHistoryEntry(entry) {
   const doneSets = entry.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
 
   const item = document.createElement("li");
-  item.className = "history-entry";
+  item.className = "history-entry card";
 
   const details = document.createElement("details");
   const summary = document.createElement("summary");
@@ -837,13 +858,6 @@ function renderHistoryEntry(entry) {
   item.append(details);
   return item;
 }
-
-historyBtn.addEventListener("click", () => {
-  renderHistory();
-  historyDialog.showModal();
-});
-
-historyCloseBtn.addEventListener("click", () => historyDialog.close());
 
 // --- Exportar e importar (backup) ---
 
@@ -947,6 +961,7 @@ async function loadExerciseCatalog() {
   } catch {
     // Sin catálogo (ej: abriendo el archivo directo) la app funciona igual, sin imágenes ni sugerencias
   }
+  renderDirectory();
 }
 
 // Muestra la imagen del ejercicio con su crédito, o nada si no está en el catálogo
@@ -998,27 +1013,39 @@ function matchesSearch(entry, words) {
   return words.every((word) => names.some((name) => name.includes(word)));
 }
 
-function renderPicker() {
-  const search = normalizeName(pickerSearch.value);
-  const words = search.split(" ").filter(Boolean);
+// Lo usan el selector del editor y la sección Ejercicios. Con onPick, cada ejercicio es un botón para elegirlo.
+function renderExerciseList({ search, list, empty, onPick }) {
+  const words = normalizeName(search.value).split(" ").filter(Boolean);
   const results = exerciseEntries.filter((entry) => matchesSearch(entry, words));
 
-  pickerList.replaceChildren(...results.map(renderPickerItem));
-  pickerEmpty.hidden = results.length > 0;
+  list.replaceChildren(...results.map((entry) => renderExerciseItem(entry, onPick)));
+  empty.hidden = results.length > 0;
   if (exerciseEntries.length === 0) {
-    pickerEmpty.textContent = "No se pudo cargar el directorio. Escribí el nombre a mano.";
+    empty.textContent = "No se pudo cargar el directorio.";
   } else {
-    pickerEmpty.textContent = `No hay ejercicios con "${pickerSearch.value.trim()}". Podés cerrar y escribirlo a mano.`;
+    empty.textContent = `No hay ejercicios con "${search.value.trim()}".`;
   }
 }
 
-function renderPickerItem(entry) {
+function renderPicker() {
+  renderExerciseList({ search: pickerSearch, list: pickerList, empty: pickerEmpty, onPick: pickExercise });
+  if (!pickerEmpty.hidden) pickerEmpty.textContent += " Podés cerrar y escribirlo a mano.";
+}
+
+// Por ahora la sección solo muestra el catálogo; el detalle de cada ejercicio llega en #38
+function renderDirectory() {
+  renderExerciseList({ search: directorySearch, list: directoryList, empty: directoryEmpty });
+}
+
+function renderExerciseItem(entry, onPick) {
   const item = document.createElement("li");
 
-  const button = document.createElement("button");
-  button.type = "button";
+  const button = document.createElement(onPick ? "button" : "div");
   button.className = "picker-item";
-  button.addEventListener("click", () => pickExercise(entry));
+  if (onPick) {
+    button.type = "button";
+    button.addEventListener("click", () => onPick(entry));
+  }
 
   // loading="lazy": solo se descargan las imágenes que llegan a verse al bajar
   const image = document.createElement("img");
@@ -1064,7 +1091,76 @@ picker.addEventListener("close", () => {
   pickerTarget = null;
 });
 
+directorySearch.addEventListener("input", renderDirectory);
+
+// --- Menú ⋮ (hoja inferior con acciones) ---
+
+// Acciones del menú abierto; el "value" de cada botón es su posición en esta lista
+let menuItems = [];
+
+// items: [{ label, action, danger }]. Devuelve el botón ⋮ que abre el menú.
+function createMenuButton(title, items) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "menu-btn";
+  button.setAttribute("aria-label", `Opciones de ${title}`);
+  button.innerHTML = '<svg class="icon"><use href="#icon-more"></use></svg>';
+  button.addEventListener("click", () => openActionMenu(title, items));
+  return button;
+}
+
+function openActionMenu(title, items) {
+  menuItems = items;
+  actionMenuTitle.textContent = title;
+  actionMenuItems.replaceChildren(
+    ...items.map((item, index) => {
+      const button = document.createElement("button");
+      button.className = item.danger ? "menu-item menu-item--danger" : "menu-item";
+      button.value = String(index);
+      button.textContent = item.label;
+      return button;
+    })
+  );
+  actionMenu.returnValue = "";
+  actionMenu.showModal();
+}
+
+// La acción corre después de cerrar, así puede abrir otra pantalla (ej: el editor).
+// returnValue vacío = Cancelar, Escape o "atrás".
+actionMenu.addEventListener("close", () => {
+  const value = actionMenu.returnValue;
+  if (value !== "") menuItems[Number(value)]?.action();
+  menuItems = [];
+});
+
+// --- Secciones (barra inferior) ---
+
+const DEFAULT_VIEW = "entrenamientos";
+
+// La sección queda en la dirección (#informe) para que al recargar se vuelva a la misma
+function showView(name) {
+  if (!views.some((view) => view.dataset.view === name)) name = DEFAULT_VIEW;
+
+  for (const view of views) view.hidden = view.dataset.view !== name;
+  for (const button of document.querySelectorAll(".nav-bar__item")) {
+    const active = button.dataset.openView === name;
+    button.classList.toggle("nav-bar__item--active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+
+  // replaceState: cambiar de sección no suma pasos al botón "atrás"
+  history.replaceState(null, "", `#${name}`);
+  window.scrollTo(0, 0);
+}
+
+for (const button of viewButtons) {
+  button.addEventListener("click", () => showView(button.dataset.openView));
+}
+
 renderWorkouts();
+renderHistory();
+showView(location.hash.slice(1));
 loadExerciseCatalog();
 
 // --- App instalable (PWA) ---
