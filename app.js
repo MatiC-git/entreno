@@ -237,7 +237,17 @@ function addExerciseRow(exercise) {
 
   row.querySelector(".exercise-row__remove").addEventListener("click", () => {
     row.remove();
-    updateRemoveButtons();
+    updateExerciseButtons();
+  });
+
+  row.querySelector(".exercise-row__up").addEventListener("click", (event) => {
+    row.previousElementSibling?.before(row);
+    keepFocus(event.currentTarget, row.querySelector(".exercise-row__down"));
+  });
+
+  row.querySelector(".exercise-row__down").addEventListener("click", (event) => {
+    row.nextElementSibling?.after(row);
+    keepFocus(event.currentTarget, row.querySelector(".exercise-row__up"));
   });
 
   row.querySelector(".exercise-row__add-set").addEventListener("click", () => {
@@ -246,7 +256,7 @@ function addExerciseRow(exercise) {
   });
 
   exerciseFields.append(row);
-  updateRemoveButtons();
+  updateExerciseButtons();
   return row;
 }
 
@@ -290,12 +300,23 @@ function updateSetRows(exerciseRow) {
   exerciseRow.querySelector(".exercise-row__add-set").disabled = setRows.length >= MAX_SETS;
 }
 
-// Siempre tiene que quedar al menos un ejercicio
-function updateRemoveButtons() {
-  const buttons = exerciseFields.querySelectorAll(".exercise-row__remove");
-  buttons.forEach((button) => {
-    button.disabled = buttons.length === 1;
+// Siempre tiene que quedar al menos un ejercicio.
+// También deshabilita ↑ en el primero y ↓ en el último, así que se llama después de cada cambio de orden.
+function updateExerciseButtons() {
+  const rows = [...exerciseFields.children];
+  rows.forEach((row, index) => {
+    row.querySelector(".exercise-row__remove").disabled = rows.length === 1;
+    row.querySelector(".exercise-row__up").disabled = index === 0;
+    row.querySelector(".exercise-row__down").disabled = index === rows.length - 1;
   });
+}
+
+// Mover la fila le saca el foco al botón; se lo devolvemos (o al opuesto si quedó deshabilitado)
+// para poder seguir moviendo el mismo ejercicio sin volver a buscarlo
+function keepFocus(button, fallback) {
+  updateExerciseButtons();
+  (button.disabled ? fallback : button).focus();
+  button.closest(".exercise-row").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 // Sin argumento crea uno nuevo; con un entrenamiento, lo abre para editar.

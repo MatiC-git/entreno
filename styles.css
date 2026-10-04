@@ -399,6 +399,23 @@ body {
   cursor: pointer;
 }
 
+/* ↑ y ↓ más angostos para dejarle lugar al nombre en pantallas chicas */
+.exercise-row__move {
+  flex-shrink: 0;
+  width: 32px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.exercise-row__move:disabled {
+  visibility: hidden;
+}
+
 .exercise-row__remove:disabled,
 .set-row__remove:disabled {
   opacity: 0.3;
