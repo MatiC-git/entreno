@@ -72,7 +72,8 @@
     <li class="exercise-row">
       <div class="exercise-row__top">
         <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
-               maxlength="40" required pattern=".*\S.*" aria-label="Nombre del ejercicio">
+               maxlength="40" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
+               list="exercise-catalog" autocomplete="off">
         <button class="exercise-row__move exercise-row__up" type="button" aria-label="Subir ejercicio">↑</button>
         <button class="exercise-row__move exercise-row__down" type="button" aria-label="Bajar ejercicio">↓</button>
         <button class="exercise-row__remove" type="button" aria-label="Quitar ejercicio">✕</button>
@@ -88,6 +89,9 @@
       </div>
     </li>
   </template>
+
+  <!-- Sugerencias al escribir el nombre de un ejercicio; app.js las carga desde exercises-es.json -->
+  <datalist id="exercise-catalog"></datalist>
 
   <!-- Molde de cada serie dentro de un ejercicio -->
   <template id="set-row-template">
@@ -118,6 +122,11 @@
       <section class="session__current" id="session-current">
         <p class="session__set" id="session-set"></p>
         <p class="session__exercise" id="session-exercise"></p>
+        <!-- Solo se muestra si el ejercicio está en el catálogo de wger -->
+        <figure class="session__image" id="session-image" hidden>
+          <img id="session-image-img" alt="" width="400" height="400">
+          <figcaption class="session__image-credit" id="session-image-credit"></figcaption>
+        </figure>
         <p class="session__reps" id="session-reps"></p>
         <!-- Se puede ajustar antes de marcar la serie; queda guardado para la próxima vez -->
         <label class="session__weight">
