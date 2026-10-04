@@ -20,6 +20,7 @@ const exerciseFields = document.getElementById("exercise-fields");
 const addExerciseBtn = document.getElementById("add-exercise-btn");
 const cancelBtn = document.getElementById("cancel-btn");
 const deleteWorkoutBtn = document.getElementById("delete-workout-btn");
+const duplicateWorkoutBtn = document.getElementById("duplicate-workout-btn");
 const editorTitle = document.getElementById("editor-title");
 const exerciseRowTemplate = document.getElementById("exercise-row-template");
 const setRowTemplate = document.getElementById("set-row-template");
@@ -297,24 +298,33 @@ function updateRemoveButtons() {
   });
 }
 
-// Sin argumento crea uno nuevo; con un entrenamiento, lo abre para editar
-function openEditor(workout = null) {
-  editingId = workout ? workout.id : null;
+// Sin argumento crea uno nuevo; con un entrenamiento, lo abre para editar.
+// Con asCopy, carga sus datos pero al guardar se crea uno nuevo (el original no cambia).
+function openEditor(workout = null, { asCopy = false } = {}) {
+  const isEditing = workout && !asCopy;
+  editingId = isEditing ? workout.id : null;
 
   form.reset();
   exerciseFields.replaceChildren();
 
   if (workout) {
-    editorTitle.textContent = "Editar entrenamiento";
-    workoutNameInput.value = workout.name;
+    editorTitle.textContent = asCopy ? "Copia de entrenamiento" : "Editar entrenamiento";
+    workoutNameInput.value = asCopy ? copyName(workout.name) : workout.name;
     workout.exercises.forEach((exercise) => addExerciseRow(exercise));
   } else {
     editorTitle.textContent = "Nuevo entrenamiento";
     addExerciseRow();
   }
 
-  deleteWorkoutBtn.hidden = !workout;
-  editor.showModal();
+  deleteWorkoutBtn.hidden = !isEditing;
+  duplicateWorkoutBtn.hidden = !isEditing;
+  if (!editor.open) editor.showModal();
+}
+
+// "Piernas" → "Piernas (copia)", recortando el nombre para no pasar el máximo del campo
+function copyName(name) {
+  const suffix = " (copia)";
+  return name.slice(0, workoutNameInput.maxLength - suffix.length).trimEnd() + suffix;
 }
 
 newWorkoutBtn.addEventListener("click", () => openEditor());
@@ -358,6 +368,16 @@ form.addEventListener("submit", (event) => {
   saveWorkouts();
   renderWorkouts();
   editor.close();
+});
+
+// Usa lo guardado, no lo que esté escrito en el formulario: los cambios sin guardar no pasan a la copia
+duplicateWorkoutBtn.addEventListener("click", () => {
+  const workout = workouts.find((item) => item.id === editingId);
+  if (!workout) return;
+
+  openEditor(workout, { asCopy: true });
+  workoutNameInput.focus();
+  workoutNameInput.select();
 });
 
 deleteWorkoutBtn.addEventListener("click", () => {
