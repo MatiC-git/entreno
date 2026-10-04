@@ -921,7 +921,7 @@ function normalizeName(name) {
 
 async function loadExerciseCatalog() {
   try {
-    const response = await fetch("exercises-es.json");
+    const response = await fetch("data/exercises-es.json");
     const entries = await response.json();
 
     for (const entry of entries) {

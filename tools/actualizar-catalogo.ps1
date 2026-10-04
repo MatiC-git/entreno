@@ -1,4 +1,4 @@
-# Genera exercises-es.json: los ejercicios de wger (https://wger.de) que tienen nombre en
+# Genera data/exercises-es.json: los ejercicios de wger (https://wger.de) que tienen nombre en
 # español e imagen. La app usa ese archivo en vez de llamar a la API cada vez.
 #
 # Uso (desde la carpeta del proyecto):  powershell -File tools/actualizar-catalogo.ps1
@@ -39,4 +39,4 @@ $lines = $catalog | ForEach-Object { ConvertTo-Json $_ -Depth 4 -Compress }
 $text = "[`n" + ($lines -join ",`n") + "`n]`n"
 [System.IO.File]::WriteAllText($output, $text, (New-Object System.Text.UTF8Encoding $false))
 
-Write-Host "Listo: $(@($catalog).Count) ejercicios en exercises-es.json"
+Write-Host "Listo: $(@($catalog).Count) ejercicios en data/exercises-es.json"

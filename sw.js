@@ -2,14 +2,14 @@
 // Estrategia "primero la red": si hay internet trae la última versión (y actualiza la copia guardada);
 // si no hay, usa la copia guardada. Así los cambios nuevos aparecen apenas se recarga.
 
-const CACHE = "entreno-v1";
+const CACHE = "entreno-v2";
 const FILES = [
   "./",
   "index.html",
-  "styles.css",
-  "app.js",
+  "css/styles.css",
+  "js/app.js",
   "manifest.json",
-  "exercises-es.json",
+  "data/exercises-es.json",
   "icons/icon-192.png",
   "icons/icon-512.png",
   "icons/apple-touch-icon.png",
