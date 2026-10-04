@@ -71,9 +71,11 @@
   <template id="exercise-row-template">
     <li class="exercise-row">
       <div class="exercise-row__top">
+        <!-- maxlength 60: el nombre más largo del catálogo tiene 60 letras -->
         <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
-               maxlength="40" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
+               maxlength="60" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
                list="exercise-catalog" autocomplete="off">
+        <button class="exercise-row__pick" type="button" aria-label="Elegir del directorio de ejercicios">🔍</button>
         <button class="exercise-row__move exercise-row__up" type="button" aria-label="Subir ejercicio">↑</button>
         <button class="exercise-row__move exercise-row__down" type="button" aria-label="Bajar ejercicio">↓</button>
         <button class="exercise-row__remove" type="button" aria-label="Quitar ejercicio">✕</button>
@@ -92,6 +94,28 @@
 
   <!-- Sugerencias al escribir el nombre de un ejercicio; app.js las carga desde data/exercises-es.json -->
   <datalist id="exercise-catalog"></datalist>
+
+  <!-- Directorio de ejercicios: se abre con 🔍 en el editor y completa el nombre al elegir uno -->
+  <dialog class="picker" id="exercise-picker" aria-labelledby="picker-title">
+    <header class="picker__header">
+      <button class="btn-text" id="picker-cancel-btn" type="button">Cancelar</button>
+      <h2 class="picker__title" id="picker-title">Elegir ejercicio</h2>
+    </header>
+
+    <div class="picker__search">
+      <input class="field__input" id="picker-search" type="search" placeholder="Buscar…"
+             autocomplete="off" aria-label="Buscar ejercicio">
+    </div>
+
+    <div class="picker__body" id="picker-body">
+      <p class="picker__empty" id="picker-empty" hidden></p>
+      <ul class="picker-list" id="picker-list"></ul>
+    </div>
+
+    <footer class="picker__footer">
+      Imágenes de <a href="https://wger.de" target="_blank" rel="noopener">wger.de</a> (Creative Commons)
+    </footer>
+  </dialog>
 
   <!-- Molde de cada serie dentro de un ejercicio -->
   <template id="set-row-template">
