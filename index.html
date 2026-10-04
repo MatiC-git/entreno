@@ -10,6 +10,7 @@
 <body>
   <header class="app-header">
     <h1>entreno</h1>
+    <button class="btn-text" id="history-btn" type="button">Historial</button>
   </header>
 
   <main class="app-main">
@@ -128,6 +129,45 @@
 
     <footer class="session__footer">
       <button class="btn btn--primary" id="session-done-btn" type="button">Serie hecha ✓</button>
+    </footer>
+  </dialog>
+
+  <!-- Al salir a mitad de un entrenamiento. Cada botón cierra la ventana con su "value" -->
+  <dialog class="sheet" id="exit-dialog" aria-labelledby="exit-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="exit-title">¿Terminar el entrenamiento?</h2>
+      <p class="sheet__text" id="exit-text"></p>
+      <button class="btn btn--primary" value="save">Guardar y salir</button>
+      <button class="btn btn--danger" value="discard">Salir sin guardar</button>
+      <button class="btn btn--ghost" value="continue">Seguir entrenando</button>
+    </form>
+  </dialog>
+
+  <!-- Pantalla del historial -->
+  <dialog class="history" id="history-dialog" aria-labelledby="history-title">
+    <header class="history__header">
+      <button class="btn-text" id="history-close-btn" type="button">Cerrar</button>
+      <h2 class="history__title" id="history-title">Historial</h2>
+    </header>
+
+    <div class="history__body">
+      <p class="history__empty" id="history-empty">
+        Todavía no registraste entrenamientos. Se guardan al terminar uno con "Empezar".
+      </p>
+      <ul class="history-list" id="history-list"></ul>
+    </div>
+
+    <footer class="history__footer">
+      <p class="history__footer-text">
+        Tus datos se guardan solo en este navegador. Exportalos para tener un backup
+        o pasarlos a otro dispositivo.
+      </p>
+      <div class="history__actions">
+        <button class="btn btn--ghost" id="export-btn" type="button">Exportar</button>
+        <button class="btn btn--ghost" id="import-btn" type="button">Importar</button>
+      </div>
+      <!-- Oculto: "Importar" lo abre para elegir el archivo -->
+      <input id="import-input" type="file" accept=".json,application/json" hidden>
     </footer>
   </dialog>
 

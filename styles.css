@@ -41,6 +41,9 @@ body {
 
 /* Encabezado */
 .app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: var(--gutter);
 }
 
@@ -403,7 +406,8 @@ body {
 }
 
 /* Modo entrenar: pantalla completa con la serie actual en grande */
-.session {
+.session,
+.history {
   width: 100%;
   max-width: 480px;
   height: 100dvh;
@@ -415,28 +419,33 @@ body {
   color: var(--text);
 }
 
-.session[open] {
+.session[open],
+.history[open] {
   display: flex;
   flex-direction: column;
 }
 
-.session::backdrop {
+.session::backdrop,
+.history::backdrop {
   background: rgb(0 0 0 / 0.5);
 }
 
-.session__header {
+.session__header,
+.history__header {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: var(--gutter);
 }
 
-.session__title {
+.session__title,
+.history__title {
   font-size: 1.125rem;
   font-weight: 700;
 }
 
-.session__body {
+.session__body,
+.history__body {
   flex: 1;
   overflow-y: auto;
   padding: 0 var(--gutter);
@@ -547,6 +556,140 @@ body {
   padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
 }
 
+/* Ventanita para elegir qué hacer al salir de un entrenamiento */
+.sheet {
+  width: calc(100% - 2 * var(--gutter));
+  max-width: 400px;
+  margin: auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sheet::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.sheet__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px var(--gutter) var(--gutter);
+}
+
+.sheet__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.sheet__text {
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.sheet .btn--ghost {
+  background: var(--bg);
+}
+
+/* Historial: una tarjeta por sesión, que se despliega al tocarla */
+.history__body {
+  padding-bottom: var(--gutter);
+}
+
+/* Abajo: aviso de dónde viven los datos + Exportar / Importar */
+.history__footer {
+  padding: var(--gutter);
+  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
+
+.history__footer-text {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.history__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.history__empty {
+  margin-top: 20vh;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+}
+
+.history-entry {
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.history-entry__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  padding: var(--gutter);
+  list-style: none;
+  cursor: pointer;
+}
+
+/* Safari muestra su propio triángulo si no se oculta */
+.history-entry__summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-entry__title {
+  font-weight: 700;
+}
+
+.history-entry__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.history-entry__meta {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.history-entry__exercises {
+  list-style: none;
+  padding: 0 var(--gutter) var(--gutter);
+}
+
+/* Con sangría, para que se lea como detalle de la sesión */
+.history-entry__exercises li {
+  padding: 8px 0 8px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.history-entry__exercise {
+  display: block;
+  font-weight: 600;
+}
+
+.history-entry__sets {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Timer de descanso: pantalla completa, números grandes para verlos de lejos */
 .timer {
   width: 100%;
@@ -639,10 +782,10 @@ body {
   display: none;
 }
 
-/* En pantallas grandes, centrar el contenido como si fuera un celular */
-@media (min-width: 600px) {
-  body {
-    max-width: 480px;
-    margin: 0 auto;
-  }
+/* En pantallas más anchas que un celular, centrar el contenido con el mismo
+   ancho máximo que las pantallas que se abren encima (480px). Antes empezaba
+   recién en 600px y entre 481 y 599px la app asomaba a los costados. */
+body {
+  max-width: 480px;
+  margin: 0 auto;
 }
