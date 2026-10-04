@@ -13,6 +13,19 @@ App web para armar y seguir entrenamientos desde el celular.
 
 HTML + CSS + JavaScript, sin frameworks ni herramientas de build.
 
+## Estructura
+
+```
+index.html       página de la app
+sw.js            service worker: funcionamiento offline (va en la raíz para cubrir toda la app)
+manifest.json    datos para instalarla en el celular
+css/             estilos
+js/              lógica de la app
+data/            catálogo de ejercicios (wger)
+icons/           íconos de la app
+tools/           scripts de mantenimiento (no los usa la app)
+```
+
 ## Cómo usarla
 
 Online (también desde el celular): https://matic-git.github.io/entreno/
@@ -24,7 +37,7 @@ En local: abrir `index.html` en el navegador.
 ## Imágenes de ejercicios
 
 Las imágenes vienen de [wger](https://wger.de) (licencias Creative Commons, con crédito al autor).
-`exercises-es.json` es una copia de los ejercicios de wger que tienen nombre en español e imagen; para actualizarla:
+`data/exercises-es.json` es una copia de los ejercicios de wger que tienen nombre en español e imagen; para actualizarla:
 
 ```
 powershell -File tools/actualizar-catalogo.ps1
