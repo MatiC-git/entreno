@@ -29,6 +29,10 @@ const sessionTitle = document.getElementById("session-title");
 const sessionCurrent = document.getElementById("session-current");
 const sessionSet = document.getElementById("session-set");
 const sessionExercise = document.getElementById("session-exercise");
+const sessionImage = document.getElementById("session-image");
+const sessionImageImg = document.getElementById("session-image-img");
+const sessionImageCredit = document.getElementById("session-image-credit");
+const exerciseCatalogList = document.getElementById("exercise-catalog");
 const sessionReps = document.getElementById("session-reps");
 const sessionWeight = document.getElementById("session-weight");
 const sessionFinished = document.getElementById("session-finished");
@@ -593,6 +597,7 @@ function renderSession() {
   } else {
     sessionSet.textContent = `Serie ${set} de ${exercise.sets.length}`;
     sessionExercise.textContent = exercise.name;
+    showExerciseImage(exercise.name);
     sessionReps.textContent = plural(exercise.sets[set - 1].reps, "repetición", "repeticiones");
 
     // Último peso usado en esta serie; si nunca se cargó, el de la serie anterior
@@ -903,7 +908,62 @@ importInput.addEventListener("change", () => {
   if (file) importData(file);
 });
 
+// --- Catálogo de ejercicios (imágenes de wger) ---
+
+// Ejercicios de wger.de con nombre en español e imagen (lo genera tools/actualizar-catalogo.ps1).
+// Clave: el nombre normalizado (o un alias); valor: { name, image, author, license }.
+const exerciseCatalog = new Map();
+
+// "Press de Banca " → "press de banca": sin mayúsculas, tildes ni espacios de más
+function normalizeName(name) {
+  return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+async function loadExerciseCatalog() {
+  try {
+    const response = await fetch("exercises-es.json");
+    const entries = await response.json();
+
+    for (const entry of entries) {
+      for (const name of [entry.name, ...entry.aliases]) {
+        exerciseCatalog.set(normalizeName(name), entry);
+      }
+    }
+    exerciseCatalogList.replaceChildren(...entries.map((entry) => new Option(entry.name)));
+  } catch {
+    // Sin catálogo (ej: abriendo el archivo directo) la app funciona igual, sin imágenes ni sugerencias
+  }
+}
+
+// Muestra la imagen del ejercicio con su crédito, o nada si no está en el catálogo
+function showExerciseImage(name) {
+  const entry = exerciseCatalog.get(normalizeName(name));
+  sessionImage.hidden = !entry;
+  if (!entry) {
+    sessionImageImg.removeAttribute("src");
+    return;
+  }
+
+  sessionImageImg.src = entry.image;
+  const link = document.createElement("a");
+  link.href = "https://wger.de";
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.textContent = "wger.de";
+  sessionImageCredit.replaceChildren(
+    "Imagen: ",
+    link,
+    [entry.author, entry.license].filter(Boolean).map((text) => ` · ${text}`).join("")
+  );
+}
+
+// Si la imagen no carga (ej: sin internet y nunca se vio antes), se oculta en vez de mostrarse rota
+sessionImageImg.addEventListener("error", () => {
+  sessionImage.hidden = true;
+});
+
 renderWorkouts();
+loadExerciseCatalog();
 
 // --- App instalable (PWA) ---
 

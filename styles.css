@@ -495,6 +495,34 @@ body {
   overflow-wrap: anywhere;
 }
 
+.session__image {
+  margin: 16px auto;
+  max-width: 240px;
+}
+
+.session__image[hidden] {
+  display: none;
+}
+
+/* Las imágenes de wger tienen fondo blanco: un recuadro blanco las integra también en modo oscuro */
+.session__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.session__image-credit {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.session__image-credit a {
+  color: inherit;
+}
+
 .session__reps {
   font-size: 1.25rem;
   color: var(--text-muted);

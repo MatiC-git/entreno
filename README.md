@@ -20,3 +20,12 @@ Online (también desde el celular): https://matic-git.github.io/entreno/
 Se publica con GitHub Pages desde la rama `main`: cada merge actualiza el sitio en un par de minutos.
 
 En local: abrir `index.html` en el navegador.
+
+## Imágenes de ejercicios
+
+Las imágenes vienen de [wger](https://wger.de) (licencias Creative Commons, con crédito al autor).
+`exercises-es.json` es una copia de los ejercicios de wger que tienen nombre en español e imagen; para actualizarla:
+
+```
+powershell -File tools/actualizar-catalogo.ps1
+```
