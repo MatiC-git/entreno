@@ -33,12 +33,10 @@ const exerciseRowTemplate = document.getElementById("exercise-row-template");
 const setRowTemplate = document.getElementById("set-row-template");
 const sessionDialog = document.getElementById("workout-session");
 const sessionTitle = document.getElementById("session-title");
-const sessionCurrent = document.getElementById("session-current");
-const sessionSet = document.getElementById("session-set");
-const sessionExercise = document.getElementById("session-exercise");
-const sessionImage = document.getElementById("session-image");
-const sessionImageImg = document.getElementById("session-image-img");
-const sessionImageCredit = document.getElementById("session-image-credit");
+const sessionBody = document.getElementById("session-body");
+const sessionExercises = document.getElementById("session-exercises");
+const sessionExerciseTemplate = document.getElementById("session-exercise-template");
+const sessionSetTemplate = document.getElementById("session-set-template");
 const exerciseCatalogList = document.getElementById("exercise-catalog");
 const picker = document.getElementById("exercise-picker");
 const pickerCancelBtn = document.getElementById("picker-cancel-btn");
@@ -46,8 +44,6 @@ const pickerSearch = document.getElementById("picker-search");
 const pickerBody = document.getElementById("picker-body");
 const pickerEmpty = document.getElementById("picker-empty");
 const pickerList = document.getElementById("picker-list");
-const sessionReps = document.getElementById("session-reps");
-const sessionWeight = document.getElementById("session-weight");
 const sessionFinished = document.getElementById("session-finished");
 const sessionSummary = document.getElementById("session-summary");
 const sessionPlan = document.getElementById("session-plan");
@@ -85,15 +81,17 @@ const importBtn = document.getElementById("import-btn");
 const importInput = document.getElementById("import-input");
 const restTimer = document.getElementById("rest-timer");
 const timerLabel = document.getElementById("timer-label");
-const timerExercise = document.getElementById("timer-exercise");
+const timerNextThumb = document.getElementById("timer-next-thumb");
+const timerNextName = document.getElementById("timer-next-name");
+const timerNextSet = document.getElementById("timer-next-set");
 const timerTime = document.getElementById("timer-time");
 const timerProgress = document.getElementById("timer-progress");
 const timerDoneText = document.getElementById("timer-done-text");
 const timerControls = document.getElementById("timer-controls");
-const timerAddBtn = document.getElementById("timer-add-btn");
-const timerPauseBtn = document.getElementById("timer-pause-btn");
+const timerLessBtn = document.getElementById("timer-less-btn");
+const timerMoreBtn = document.getElementById("timer-more-btn");
 const timerSkipBtn = document.getElementById("timer-skip-btn");
-const timerCloseBtn = document.getElementById("timer-close-btn");
+const timerPauseBtn = document.getElementById("timer-pause-btn");
 
 let workouts = loadWorkouts();
 
@@ -256,18 +254,34 @@ function readWeight(input) {
   return input.value === "" ? null : Number(input.value);
 }
 
-// Pone el separador "—— ⏱ 2:00 ——" entre cada par de elementos de una lista
-function withRestSeparators(items, seconds) {
-  return items.flatMap((item, index) => (index === 0 ? [item] : [createRestSeparator(seconds), item]));
+// Pone el separador "—— ⏱ 2:00 ——" entre cada par de elementos de una lista.
+// Con onEdit, cada separador es un botón para cambiar el descanso.
+function withRestSeparators(items, seconds, onEdit) {
+  return items.flatMap((item, index) => (index === 0 ? [item] : [createRestSeparator(seconds, onEdit), item]));
 }
 
-function createRestSeparator(seconds) {
-  const separator = document.createElement("li");
+function createRestSeparator(seconds, onEdit) {
+  const separator = document.createElement(onEdit ? "button" : "li");
   separator.className = "rest-separator";
-  separator.innerHTML = '<svg class="icon"><use href="#icon-timer"></use></svg>';
-  separator.append(formatTime(seconds));
-  separator.setAttribute("aria-label", `Descanso entre ejercicios: ${formatTime(seconds)}`);
-  return separator;
+  separator.innerHTML = '<svg class="icon"><use href="#icon-timer"></use></svg><span class="rest-separator__time"></span>';
+  updateRestSeparatorTime(separator, seconds, Boolean(onEdit));
+  if (!onEdit) return separator;
+
+  separator.type = "button";
+  separator.classList.add("rest-separator--editable");
+  separator.addEventListener("click", onEdit);
+  const item = document.createElement("li");
+  item.append(separator);
+  return item;
+}
+
+function updateRestSeparatorTime(separator, seconds, editable) {
+  const time = formatTime(seconds);
+  separator.querySelector(".rest-separator__time").textContent = time;
+  separator.setAttribute(
+    "aria-label",
+    `Descanso entre ejercicios: ${time}${editable ? ". Tocar para cambiarlo" : ""}`
+  );
 }
 
 function countSets(workout) {
@@ -395,10 +409,7 @@ function openExerciseMenu(row) {
 
 // El separador de arriba de cada tarjeta muestra el descanso entre ejercicios del entrenamiento
 function updateRestSeparator(row) {
-  const time = formatTime(editorRestBetweenExercises);
-  const separator = row.querySelector(".rest-separator");
-  separator.querySelector(".rest-separator__time").textContent = time;
-  separator.setAttribute("aria-label", `Descanso entre ejercicios: ${time}. Tocar para cambiarlo`);
+  updateRestSeparatorTime(row.querySelector(".rest-separator"), editorRestBetweenExercises, true);
 }
 
 function editRestBetweenExercises() {
@@ -757,10 +768,14 @@ restDialog.addEventListener("close", () => {
 
 // --- Timer de descanso ---
 
-const TIMER_STEP_MS = 15000;
+const TIMER_STEP_MS = 5000;
+
+// Al terminar, cuánto queda abierta la hoja: lo justo para los tres pitidos y la vibración
+const TIMER_CLOSE_DELAY_MS = 1500;
 
 // Timer en curso; null si no hay ninguno. Se guarda la hora de fin (y no
 // "segundos restantes") para que no se atrase si el celular congela la página.
+// En pausa se guarda lo que faltaba (remainingMs).
 let timer = null;
 let audioContext = null;
 let wakeLock = null;
@@ -775,9 +790,9 @@ function timeLeftMs() {
   return timer.paused ? timer.remainingMs : Math.max(0, timer.endsAt - Date.now());
 }
 
-// subtitle: el ejercicio, o qué viene después si se usa desde el modo entrenar.
+// next: qué viene después ({ name, set: "Serie 2 de 3" }).
 // label: "Descanso", o "Descanso entre ejercicios" al pasar al siguiente.
-function startRestTimer(subtitle, seconds, label = "Descanso") {
+function startRestTimer(next, seconds, label = "Descanso") {
   prepareSound();
 
   timer = {
@@ -787,10 +802,13 @@ function startRestTimer(subtitle, seconds, label = "Descanso") {
     remainingMs: 0,
     done: false,
     intervalId: setInterval(updateTimer, 250),
+    closeTimeoutId: null,
   };
 
   timerLabel.textContent = label;
-  timerExercise.textContent = subtitle;
+  timerNextThumb.replaceChildren(createExerciseThumb(next.name));
+  timerNextName.textContent = next.name;
+  timerNextSet.textContent = next.set;
   timerPauseBtn.textContent = "Pausar";
   showTimerDone(false);
   updateTimer();
@@ -808,30 +826,37 @@ function updateTimer() {
   if (left === 0 && !timer.done) finishTimer();
 }
 
+// Suena, vibra y la hoja se cierra sola: se sigue con la próxima serie sin tocar nada
 function finishTimer() {
   timer.done = true;
   clearInterval(timer.intervalId);
   showTimerDone(true);
   navigator.vibrate?.([300, 150, 300, 150, 500]);
   playBeeps();
+  timer.closeTimeoutId = setTimeout(() => restTimer.close(), TIMER_CLOSE_DELAY_MS);
 }
 
 function showTimerDone(done) {
   restTimer.classList.toggle("timer--done", done);
   timerDoneText.hidden = !done;
   timerControls.hidden = done;
-  timerCloseBtn.hidden = !done;
 }
 
-timerAddBtn.addEventListener("click", () => {
+// Suma o resta 5 segundos (también en pausa). Restar más de lo que queda lo termina (y suena).
+function changeTimer(ms) {
+  const left = timeLeftMs();
+  const change = Math.max(ms, -left);
   if (timer.paused) {
-    timer.remainingMs += TIMER_STEP_MS;
+    timer.remainingMs += change;
   } else {
-    timer.endsAt += TIMER_STEP_MS;
+    timer.endsAt += change;
   }
-  timer.totalMs += TIMER_STEP_MS;
+  timer.totalMs = Math.max(timer.totalMs + change, left + change, 1);
   updateTimer();
-});
+}
+
+timerLessBtn.addEventListener("click", () => changeTimer(-TIMER_STEP_MS));
+timerMoreBtn.addEventListener("click", () => changeTimer(TIMER_STEP_MS));
 
 timerPauseBtn.addEventListener("click", () => {
   if (timer.paused) {
@@ -846,11 +871,11 @@ timerPauseBtn.addEventListener("click", () => {
 });
 
 timerSkipBtn.addEventListener("click", () => restTimer.close());
-timerCloseBtn.addEventListener("click", () => restTimer.close());
 
-// Se cierra con un botón o con "atrás"/Escape: en todos los casos se frena el timer
+// Se cierra solo, con Omitir, con "atrás"/Escape o tocando el fondo: en todos los casos se frena el timer
 restTimer.addEventListener("close", () => {
   clearInterval(timer?.intervalId);
+  clearTimeout(timer?.closeTimeoutId);
   timer = null;
   if (!session) releaseScreen();
 });
@@ -907,70 +932,201 @@ function releaseScreen() {
 
 // --- Modo entrenar ---
 
-// Entrenamiento en curso; null si no hay ninguno. set empieza en 1.
-// doneSets anota cada serie hecha para guardarla después en el historial.
+// Entrenamiento en curso; null si no hay ninguno.
+// sets: todas las series en orden, cada una con su estado y sus elementos
+// ({ exerciseIndex, setIndex, done, result, row, check, weight, reps }); la serie actual es la primera sin hacer.
+// result: lo que se hizo de verdad ({ reps, weight }), lo que va al historial.
+// cards: la tarjeta de cada ejercicio.
 let session = null;
 
 function startSession(workout) {
   session = {
     workout,
-    exerciseIndex: 0,
-    set: 1,
     finished: false,
     startedAt: new Date().toISOString(),
-    doneSets: [],
+    sets: [],
+    cards: [],
   };
   sessionTitle.textContent = workout.name;
-  renderSession();
+
+  const cards = workout.exercises.map(renderSessionExercise);
+  sessionPlan.replaceChildren(
+    ...withRestSeparators(cards, workout.restBetweenExercises, editSessionRestBetweenExercises)
+  );
+  sessionExercises.hidden = false;
+  sessionFinished.hidden = true;
+
+  // Solo el primer ejercicio abierto; los demás se abren a medida que se llega a ellos
+  setExpanded(cards[0], true);
+  updateSession();
+
   sessionDialog.showModal();
+  sessionBody.scrollTop = 0;
   keepScreenOn();
 }
 
-function renderSession() {
-  const { workout, exerciseIndex, set, finished } = session;
-  const exercise = workout.exercises[exerciseIndex];
+// Tarjeta plegable como la del editor, con una fila por serie
+function renderSessionExercise(exercise, exerciseIndex) {
+  const card = sessionExerciseTemplate.content.firstElementChild.cloneNode(true);
+  card.querySelector(".exercise-row__thumb").replaceChildren(createExerciseThumb(exercise.name));
+  card.querySelector(".exercise-row__title").textContent = exercise.name;
 
-  sessionCurrent.hidden = finished;
-  sessionFinished.hidden = !finished;
-  sessionDoneBtn.textContent = finished ? "Terminar" : "Serie hecha ✓";
+  const toggle = card.querySelector(".exercise-row__toggle");
+  toggle.addEventListener("click", () => setExpanded(card, toggle.getAttribute("aria-expanded") !== "true"));
+  card.querySelector(".exercise-row__menu").addEventListener("click", () => openSessionExerciseMenu(exercise));
 
-  if (finished) {
-    sessionSummary.textContent = describeWorkout(workout);
-  } else {
-    sessionSet.textContent = `Serie ${set} de ${exercise.sets.length}`;
-    sessionExercise.textContent = exercise.name;
-    showExerciseImage(exercise.name);
-    sessionReps.textContent = plural(exercise.sets[set - 1].reps, "repetición", "repeticiones");
+  const setFields = card.querySelector(".set-fields");
+  exercise.sets.forEach((set, setIndex) => {
+    const row = sessionSetTemplate.content.firstElementChild.cloneNode(true);
+    const entry = {
+      exerciseIndex,
+      setIndex,
+      done: false,
+      result: null,
+      row,
+      check: row.querySelector(".session-set__check"),
+      weight: row.querySelector(".session-set__weight"),
+      reps: row.querySelector(".session-set__reps"),
+    };
+
+    row.querySelector(".set-row__label").textContent = setIndex + 1;
+    entry.check.setAttribute("aria-label", `Serie ${setIndex + 1} hecha`);
+    entry.weight.setAttribute("aria-label", `Peso en kg de la serie ${setIndex + 1}`);
+    entry.reps.setAttribute("aria-label", `Repeticiones de la serie ${setIndex + 1}`);
 
     // Último peso usado en esta serie; si nunca se cargó, el de la serie anterior
-    const weight = exercise.sets[set - 1].weight ?? exercise.sets[set - 2]?.weight;
-    sessionWeight.value = weight ?? "";
+    entry.weight.value = set.weight ?? exercise.sets[setIndex - 1]?.weight ?? "";
+    entry.reps.value = set.reps;
+
+    entry.check.addEventListener("click", () => toggleSet(entry));
+    // Corregir una serie ya marcada también cuenta
+    entry.weight.addEventListener("change", () => {
+      if (entry.done) saveSetResult(entry);
+    });
+    entry.reps.addEventListener("change", () => {
+      if (entry.done) saveSetResult(entry);
+    });
+
+    session.sets.push(entry);
+    setFields.append(row);
+  });
+
+  session.cards.push(card);
+  return card;
+}
+
+function currentSet() {
+  return session.sets.find((entry) => !entry.done) ?? null;
+}
+
+function countDoneSets() {
+  return session.sets.filter((entry) => entry.done).length;
+}
+
+// Marca la serie actual, cuenta lo hecho por ejercicio y cambia el botón de abajo
+function updateSession() {
+  const current = currentSet();
+
+  for (const entry of session.sets) {
+    entry.row.classList.toggle("session-set--done", entry.done);
+    entry.row.classList.toggle("session-set--current", entry === current);
+    entry.check.setAttribute("aria-pressed", String(entry.done));
   }
 
-  // Lista de ejercicios con cuántas series van hechas de cada uno
-  const steps = workout.exercises.map((item, index) => {
-    const totalSets = item.sets.length;
-    let doneSets = 0;
-    if (finished || index < exerciseIndex) doneSets = totalSets;
-    else if (index === exerciseIndex) doneSets = set - 1;
-
-    const step = document.createElement("li");
-    step.className = "session-step";
-    step.classList.toggle("session-step--current", !finished && index === exerciseIndex);
-    step.classList.toggle("session-step--done", doneSets === totalSets);
-
-    const name = document.createElement("span");
-    name.className = "session-step__name";
-    name.textContent = item.name;
-
-    const count = document.createElement("span");
-    count.className = "session-step__count";
-    count.textContent = `${doneSets === totalSets ? "✓ " : ""}${doneSets}/${totalSets}`;
-
-    step.append(name, count);
-    return step;
+  session.cards.forEach((card, exerciseIndex) => {
+    const sets = session.sets.filter((entry) => entry.exerciseIndex === exerciseIndex);
+    const done = sets.filter((entry) => entry.done).length;
+    const complete = done === sets.length;
+    const rest = formatTime(session.workout.exercises[exerciseIndex].rest);
+    card.classList.toggle("exercise-row--done", complete);
+    card.querySelector(".exercise-row__count").textContent =
+      `${complete ? "✓ " : ""}${done}/${sets.length} hechas · descanso ${rest}`;
   });
-  sessionPlan.replaceChildren(...withRestSeparators(steps, workout.restBetweenExercises));
+
+  sessionDoneBtn.textContent = current ? "Registrar la siguiente serie" : "Terminar";
+}
+
+// Anota lo hecho en la serie (va al historial). El peso además queda guardado en el entrenamiento:
+// la próxima vez la serie arranca con ese valor. Las reps no: un día con menos no cambia el plan.
+function saveSetResult(entry) {
+  if (!entry.weight.checkValidity() || !entry.reps.checkValidity()) return;
+  const weight = readWeight(entry.weight);
+  entry.result = { reps: Number(entry.reps.value), weight };
+  session.workout.exercises[entry.exerciseIndex].sets[entry.setIndex].weight = weight;
+  saveWorkouts();
+}
+
+// Menú ⋮ del ejercicio en el modo entrenar: cambiar su descanso entre series
+function openSessionExerciseMenu(exercise) {
+  openActionMenu(exercise.name, [
+    {
+      label: `Descanso entre series · ${formatTime(exercise.rest)}`,
+      action: () =>
+        openRestDialog({
+          title: "Descanso entre series",
+          text: exercise.name,
+          seconds: exercise.rest,
+          onSave: (seconds) => {
+            exercise.rest = seconds;
+            saveWorkouts();
+            updateSession();
+          },
+        }),
+    },
+  ]);
+}
+
+// Tocar un separador ⏱ cambia el descanso entre ejercicios (todos los separadores muestran el mismo)
+function editSessionRestBetweenExercises() {
+  const { workout } = session;
+  openRestDialog({
+    title: "Descanso entre ejercicios",
+    text: "Se usa al pasar de un ejercicio al siguiente.",
+    seconds: workout.restBetweenExercises,
+    onSave: (seconds) => {
+      workout.restBetweenExercises = seconds;
+      saveWorkouts();
+      for (const separator of sessionPlan.querySelectorAll(".rest-separator")) {
+        updateRestSeparatorTime(separator, seconds, true);
+      }
+    },
+  });
+}
+
+// Marca o desmarca una serie (por si se tocó por error). Al marcarla arranca el descanso.
+function toggleSet(entry) {
+  if (entry.done) {
+    entry.done = false;
+    updateSession();
+    return;
+  }
+
+  // Peso o reps inválidos (ej: negativo, vacío): mostrar el error del navegador y no marcarla
+  if (!entry.weight.reportValidity() || !entry.reps.reportValidity()) return;
+
+  entry.done = true;
+  saveSetResult(entry);
+  updateSession();
+
+  const next = currentSet();
+  if (!next) return; // todo hecho: el botón ya dice "Terminar"
+
+  // Ejercicio completo: se pliega y se abre el que sigue
+  const { workout, cards } = session;
+  const card = cards[entry.exerciseIndex];
+  if (card.classList.contains("exercise-row--done")) setExpanded(card, false);
+  setExpanded(cards[next.exerciseIndex], true);
+  next.row.scrollIntoView({ block: "center", behavior: "smooth" });
+
+  // Entre series, el descanso del ejercicio; al pasar a otro, el del entrenamiento
+  const exercise = workout.exercises[entry.exerciseIndex];
+  const nextExercise = workout.exercises[next.exerciseIndex];
+  const upNext = { name: nextExercise.name, set: `Serie ${next.setIndex + 1} de ${nextExercise.sets.length}` };
+  if (next.exerciseIndex === entry.exerciseIndex) {
+    startRestTimer(upNext, exercise.rest);
+  } else {
+    startRestTimer(upNext, workout.restBetweenExercises, "Descanso entre ejercicios");
+  }
 }
 
 sessionDoneBtn.addEventListener("click", () => {
@@ -979,64 +1135,38 @@ sessionDoneBtn.addEventListener("click", () => {
     return;
   }
 
-  // Peso inválido (ej: negativo): mostrar el error del navegador y no avanzar
-  if (!sessionWeight.reportValidity()) return;
-
-  const { workout } = session;
-  const exercise = workout.exercises[session.exerciseIndex];
-
-  // Guardar el peso usado: la próxima vez esta serie arranca con ese valor
-  const currentSet = exercise.sets[session.set - 1];
-  currentSet.weight = readWeight(sessionWeight);
-  saveWorkouts();
-
-  session.doneSets.push({
-    exerciseIndex: session.exerciseIndex,
-    reps: currentSet.reps,
-    weight: currentSet.weight,
-  });
-
-  const isLastSet = session.set === exercise.sets.length;
-  const isLastExercise = session.exerciseIndex === workout.exercises.length - 1;
-
-  // Última serie del último ejercicio: no hay descanso, se termina y queda en el historial
-  if (isLastSet && isLastExercise) {
-    session.finished = true;
-    saveSessionToHistory(true);
-    renderSession();
-    return;
-  }
-
-  if (isLastSet) {
-    session.exerciseIndex += 1;
-    session.set = 1;
+  const current = currentSet();
+  if (current) {
+    // Si su tarjeta quedó plegada, se abre para que se vea (y el error del peso o las reps, si hay)
+    setExpanded(session.cards[current.exerciseIndex], true);
+    toggleSet(current);
   } else {
-    session.set += 1;
-  }
-  renderSession();
-
-  // Entre series, el descanso del ejercicio; al pasar al siguiente, el del entrenamiento.
-  // En los dos casos avisa qué viene después.
-  const next = workout.exercises[session.exerciseIndex];
-  const subtitle = `Siguiente: ${next.name} · serie ${session.set} de ${next.sets.length}`;
-  if (isLastSet) {
-    startRestTimer(subtitle, workout.restBetweenExercises, "Descanso entre ejercicios");
-  } else {
-    startRestTimer(subtitle, exercise.rest);
+    finishSession();
   }
 });
 
-// Copia lo hecho al historial. Es una copia: editar o borrar el entrenamiento después no la cambia.
+// Todo hecho y "Terminar": queda en el historial y se muestra el cierre
+function finishSession() {
+  session.finished = true;
+  saveSessionToHistory(true);
+
+  sessionExercises.hidden = true;
+  sessionFinished.hidden = false;
+  sessionSummary.textContent = describeWorkout(session.workout);
+  sessionDoneBtn.textContent = "Listo";
+  sessionBody.scrollTop = 0;
+}
+
+// Copia lo hecho al historial (con el peso y las reps reales de cada serie).
+// Es una copia: editar o borrar el entrenamiento después no la cambia.
 // completed = false cuando se sale a la mitad y se elige "Guardar y salir".
 function saveSessionToHistory(completed) {
-  const { workout, doneSets, startedAt } = session;
+  const { workout, sets, startedAt } = session;
 
   const exercises = workout.exercises
     .map((exercise, index) => ({
       name: exercise.name,
-      sets: doneSets
-        .filter((done) => done.exerciseIndex === index)
-        .map(({ reps, weight }) => ({ reps, weight })),
+      sets: sets.filter((entry) => entry.done && entry.exerciseIndex === index).map((entry) => entry.result),
     }))
     .filter((exercise) => exercise.sets.length > 0);
 
@@ -1056,13 +1186,13 @@ function saveSessionToHistory(completed) {
 // Sin series hechas (o ya terminado) no hay nada que guardar: sale directo.
 // Si no, pregunta: guardar y salir, salir sin guardar o seguir entrenando.
 function exitSession() {
-  if (session.finished || session.doneSets.length === 0) {
+  if (session.finished || countDoneSets() === 0) {
     sessionDialog.close();
     return;
   }
 
   const planned = plural(countSets(session.workout), "serie", "series");
-  exitText.textContent = `Hiciste ${session.doneSets.length} de ${planned}.`;
+  exitText.textContent = `Hiciste ${countDoneSets()} de ${planned}.`;
   exitDialog.returnValue = "";
   exitDialog.showModal();
 }
@@ -1070,7 +1200,7 @@ function exitSession() {
 // returnValue es el "value" del botón tocado; vacío si se cerró con Escape/atrás (= seguir)
 exitDialog.addEventListener("close", () => {
   if (exitDialog.returnValue === "save") {
-    saveSessionToHistory(false);
+    saveSessionToHistory(currentSet() === null);
     sessionDialog.close();
   } else if (exitDialog.returnValue === "discard") {
     sessionDialog.close();
@@ -1278,33 +1408,6 @@ async function loadExerciseCatalog() {
   }
   renderDirectory();
 }
-
-// Muestra la imagen del ejercicio con su crédito, o nada si no está en el catálogo
-function showExerciseImage(name) {
-  const entry = exerciseCatalog.get(normalizeName(name));
-  sessionImage.hidden = !entry;
-  if (!entry) {
-    sessionImageImg.removeAttribute("src");
-    return;
-  }
-
-  sessionImageImg.src = entry.image;
-  const link = document.createElement("a");
-  link.href = "https://wger.de";
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.textContent = "wger.de";
-  sessionImageCredit.replaceChildren(
-    "Imagen: ",
-    link,
-    [entry.author, entry.license].filter(Boolean).map((text) => ` · ${text}`).join("")
-  );
-}
-
-// Si la imagen no carga (ej: sin internet y nunca se vio antes), se oculta en vez de mostrarse rota
-sessionImageImg.addEventListener("error", () => {
-  sessionImage.hidden = true;
-});
 
 // --- Directorio de ejercicios (elegir uno del catálogo) ---
 

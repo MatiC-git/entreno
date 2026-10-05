@@ -807,7 +807,7 @@ body {
   text-align: center;
 }
 
-/* Modo entrenar: pantalla completa con la serie actual en grande */
+/* Pantallas completas: modo entrenar (la lista de ejercicios con un check por serie), directorio y vista previa */
 .session,
 .picker,
 .preview {
@@ -856,80 +856,13 @@ body {
   padding: 0 var(--gutter);
 }
 
-.session__current,
 .session__finished {
   padding: 32px 0;
   text-align: center;
 }
 
-.session__current[hidden],
 .session__finished[hidden] {
   display: none;
-}
-
-.session__set {
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.session__exercise {
-  margin: 4px 0;
-  font-size: clamp(1.75rem, 9vw, 2.5rem);
-  font-weight: 800;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.session__image {
-  margin: 16px auto;
-  max-width: 240px;
-}
-
-.session__image[hidden] {
-  display: none;
-}
-
-/* Las imágenes de wger tienen fondo blanco: un recuadro blanco las integra también en modo oscuro */
-.session__image img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: var(--radius);
-  background: #ffffff;
-}
-
-.session__image-credit {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.session__image-credit a {
-  color: inherit;
-}
-
-.session__reps {
-  font-size: 1.25rem;
-  color: var(--text-muted);
-}
-
-.session__weight {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  font-size: 1.25rem;
-  color: var(--text-muted);
-}
-
-.session__weight .field__input {
-  width: 6rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  text-align: center;
 }
 
 .session__finished-title {
@@ -942,50 +875,62 @@ body {
   color: var(--text-muted);
 }
 
-.session__plan {
-  list-style: none;
-  padding: 0;
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.session-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 var(--gutter);
-  color: var(--text-muted);
-}
-
-.session-step + .session-step {
-  border-top: 1px solid var(--border);
-}
-
-.session__plan .rest-separator {
-  padding: 0 var(--gutter);
-}
-
-.session-step__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-step__count {
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.session-step--current {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.session-step--done .session-step__count {
+/* Ejercicio con todas sus series hechas: "✓ 3/3 hechas" en naranja */
+.exercise-row--done .exercise-row__count {
   color: var(--accent);
+  font-weight: 600;
+}
+
+/* Serie en el modo entrenar: "○  1  [15] KG  10 REPS". Sin ✕ a la derecha, así que lleva aire. */
+.session-set {
+  padding: 6px 12px 6px 0;
+}
+
+/* La que toca ahora: borde naranja */
+.session-set--current {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Hecha: fondo naranja suave */
+.session-set--done {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
+}
+
+/* Check redondo: vacío hasta marcar la serie; tocarlo de nuevo la desmarca */
+.session-set__check {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.session-set__check .icon {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  stroke: transparent;
+  stroke-width: 3;
+}
+
+.session-set--current .session-set__check .icon {
+  border-color: var(--accent);
+}
+
+.session-set--done .session-set__check .icon {
+  border-color: var(--accent);
+  background: var(--accent);
+  stroke: var(--accent-text);
+}
+
+.session-set__check:active .icon {
+  transform: scale(0.9);
 }
 
 .session__footer {
@@ -1300,35 +1245,8 @@ button.picker-item:active {
   color: inherit;
 }
 
-/* Timer de descanso: pantalla completa, números grandes para verlos de lejos */
-.timer {
-  width: 100%;
-  max-width: 480px;
-  height: 100dvh;
-  max-height: 100dvh;
-  margin: 0 auto;
-  padding: 0;
-  border: none;
-  background: var(--bg);
-  color: var(--text);
-}
-
-.timer[open] {
-  display: flex;
-  flex-direction: column;
-}
-
-.timer::backdrop {
-  background: rgb(0 0 0 / 0.5);
-}
-
-.timer__content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--gutter);
+/* Timer de descanso: hoja inferior con los números grandes, para verlos de lejos */
+.timer .sheet__form {
   text-align: center;
 }
 
@@ -1340,16 +1258,10 @@ button.picker-item:active {
   color: var(--text-muted);
 }
 
-.timer__exercise {
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
 .timer__time {
-  margin: 16px 0;
-  font-size: clamp(4.5rem, 28vw, 8rem);
+  font-size: clamp(3.5rem, 20vw, 5rem);
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1372,16 +1284,54 @@ button.picker-item:active {
 }
 
 .timer__done-text {
-  margin-top: 16px;
   font-size: 1.25rem;
   font-weight: 700;
 }
 
-.timer__footer {
-  padding: var(--gutter);
-  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+/* Imagen + "SIGUIENTE / Sentadilla / Serie 2 de 3", separado del reloj por una línea */
+.timer__next {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  text-align: left;
 }
 
+.timer__next-thumb {
+  display: flex;
+}
+
+.timer__next-thumb .exercise-thumb {
+  width: 64px;
+  height: 64px;
+}
+
+.timer__next-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.timer__next-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.timer__next-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.timer__next-set {
+  color: var(--text-muted);
+}
+
+/* -5s, Pausar y +5s en una fila; Omitir abajo, a lo ancho */
 .timer__controls {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1390,6 +1340,10 @@ button.picker-item:active {
 
 .timer__controls[hidden] {
   display: none;
+}
+
+.timer__skip {
+  grid-column: 1 / -1;
 }
 
 /* En pantallas más anchas que un celular, centrar el contenido con el mismo
