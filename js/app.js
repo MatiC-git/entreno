@@ -2,8 +2,14 @@
 const STORAGE_KEY = "entreno.workouts";
 const HISTORY_KEY = "entreno.history";
 
-// Descanso por defecto en segundos (también para entrenamientos guardados antes de tener este campo)
+// Descansos por defecto en segundos (también para entrenamientos guardados antes de tener estos campos):
+// entre series de un mismo ejercicio, y entre un ejercicio y el siguiente
 const DEFAULT_REST = 90;
+const DEFAULT_REST_BETWEEN_EXERCISES = 120;
+
+// Límites de cualquier descanso: de 0:05 a 10:00
+const MIN_REST = 5;
+const MAX_REST = 600;
 
 // Cuántas series tiene un ejercicio nuevo, y el máximo permitido
 const DEFAULT_SETS = 3;
@@ -67,12 +73,18 @@ const previewStartBtn = document.getElementById("preview-start-btn");
 const previewEditBtn = document.getElementById("preview-edit-btn");
 const renameDialog = document.getElementById("rename-dialog");
 const renameInput = document.getElementById("rename-input");
+const restDialog = document.getElementById("rest-dialog");
+const restTitle = document.getElementById("rest-title");
+const restText = document.getElementById("rest-text");
+const restMinutesInput = document.getElementById("rest-minutes");
+const restSecondsInput = document.getElementById("rest-seconds");
 const historyEmpty = document.getElementById("history-empty");
 const historyList = document.getElementById("history-list");
 const exportBtn = document.getElementById("export-btn");
 const importBtn = document.getElementById("import-btn");
 const importInput = document.getElementById("import-input");
 const restTimer = document.getElementById("rest-timer");
+const timerLabel = document.getElementById("timer-label");
 const timerExercise = document.getElementById("timer-exercise");
 const timerTime = document.getElementById("timer-time");
 const timerProgress = document.getElementById("timer-progress");
@@ -91,6 +103,9 @@ let historyEntries = loadHistory();
 // id del entrenamiento que se está editando; null si se está creando uno nuevo
 let editingId = null;
 
+// Descanso entre ejercicios del entrenamiento en el editor (se guarda recién con "Guardar")
+let editorRestBetweenExercises = DEFAULT_REST_BETWEEN_EXERCISES;
+
 // --- Guardado (localStorage) ---
 
 function loadWorkouts() {
@@ -105,17 +120,23 @@ function loadWorkouts() {
 
 // Pasa al formato actual un entrenamiento guardado (o importado) con un formato viejo
 function migrateWorkout(workout) {
-  return { ...workout, exercises: workout.exercises.map(migrateExercise) };
+  return {
+    ...workout,
+    restBetweenExercises: workout.restBetweenExercises ?? DEFAULT_REST_BETWEEN_EXERCISES,
+    exercises: workout.exercises.map(migrateExercise),
+  };
 }
 
 // Antes cada ejercicio guardaba la cantidad de series y unas reps para todas
 // ({ sets: 3, reps: 10 }); ahora cada serie tiene las suyas ({ sets: [{ reps: 10 }, ...] })
 function migrateExercise(exercise) {
-  if (Array.isArray(exercise.sets)) return exercise;
+  const rest = exercise.rest ?? DEFAULT_REST;
+  if (Array.isArray(exercise.sets)) return { ...exercise, rest };
 
   const { reps, ...others } = exercise;
   return {
     ...others,
+    rest,
     sets: Array.from({ length: exercise.sets }, () => ({ reps })),
   };
 }
@@ -235,6 +256,20 @@ function readWeight(input) {
   return input.value === "" ? null : Number(input.value);
 }
 
+// Pone el separador "—— ⏱ 2:00 ——" entre cada par de elementos de una lista
+function withRestSeparators(items, seconds) {
+  return items.flatMap((item, index) => (index === 0 ? [item] : [createRestSeparator(seconds), item]));
+}
+
+function createRestSeparator(seconds) {
+  const separator = document.createElement("li");
+  separator.className = "rest-separator";
+  separator.innerHTML = '<svg class="icon"><use href="#icon-timer"></use></svg>';
+  separator.append(formatTime(seconds));
+  separator.setAttribute("aria-label", `Descanso entre ejercicios: ${formatTime(seconds)}`);
+  return separator;
+}
+
 function countSets(workout) {
   return workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
 }
@@ -250,13 +285,18 @@ function addExerciseRow(exercise, { expanded = true } = {}) {
   const row = exerciseRowTemplate.content.firstElementChild.cloneNode(true);
   const nameInput = row.querySelector(".exercise-row__name");
 
+  // El descanso entre series no tiene campo en la tarjeta: se cambia desde el menú ⋮
+  row.dataset.rest = exercise?.rest ?? DEFAULT_REST;
+
   if (exercise) {
     nameInput.value = exercise.name;
-    row.querySelector(".exercise-row__rest").value = exercise.rest ?? DEFAULT_REST;
     exercise.sets.forEach((set) => addSetRow(row, set));
   } else {
     for (let i = 0; i < DEFAULT_SETS; i++) addSetRow(row);
   }
+
+  row.querySelector(".rest-separator").addEventListener("click", editRestBetweenExercises);
+  updateRestSeparator(row);
 
   row.querySelector(".exercise-row__toggle").addEventListener("click", () => {
     setExpanded(row, row.querySelector(".exercise-row__body").hidden);
@@ -325,18 +365,52 @@ function updateExerciseHeader(row) {
   }
 }
 
-// Menú ⋮ del ejercicio (más adelante suma otras opciones). Siempre tiene que quedar un ejercicio.
+// Menú ⋮ del ejercicio. Siempre tiene que quedar un ejercicio.
 function openExerciseMenu(row) {
   const nameInput = row.querySelector(".exercise-row__name");
+  const name = nameInput.value.trim() || "Ejercicio nuevo";
   const isOnly = exerciseFields.children.length === 1;
 
   openActionMenu(
-    nameInput.value.trim() || "Ejercicio nuevo",
+    name,
     [
       { label: "Cambiar ejercicio", action: () => openPicker(nameInput) },
+      {
+        label: `Descanso entre series · ${formatTime(Number(row.dataset.rest))}`,
+        action: () =>
+          openRestDialog({
+            title: "Descanso entre series",
+            text: name,
+            seconds: Number(row.dataset.rest),
+            onSave: (seconds) => {
+              row.dataset.rest = seconds;
+              updateSetRows(row);
+            },
+          }),
+      },
       !isOnly && { label: "Eliminar", danger: true, action: () => removeExercise(row) },
     ].filter(Boolean)
   );
+}
+
+// El separador de arriba de cada tarjeta muestra el descanso entre ejercicios del entrenamiento
+function updateRestSeparator(row) {
+  const time = formatTime(editorRestBetweenExercises);
+  const separator = row.querySelector(".rest-separator");
+  separator.querySelector(".rest-separator__time").textContent = time;
+  separator.setAttribute("aria-label", `Descanso entre ejercicios: ${time}. Tocar para cambiarlo`);
+}
+
+function editRestBetweenExercises() {
+  openRestDialog({
+    title: "Descanso entre ejercicios",
+    text: "Se usa al pasar de un ejercicio al siguiente.",
+    seconds: editorRestBetweenExercises,
+    onSave: (seconds) => {
+      editorRestBetweenExercises = seconds;
+      [...exerciseFields.children].forEach(updateRestSeparator);
+    },
+  });
 }
 
 function removeExercise(row) {
@@ -370,7 +444,7 @@ function addSetRow(exerciseRow, set) {
   return setRow;
 }
 
-// Renumera las series, actualiza "N series" en la cabecera y habilita o no los botones
+// Renumera las series, actualiza "N series · descanso 1:30" en la cabecera y habilita o no los botones
 // (mínimo 1 serie, máximo MAX_SETS)
 function updateSetRows(exerciseRow) {
   const setRows = [...exerciseRow.querySelectorAll(".set-row")];
@@ -382,7 +456,8 @@ function updateSetRows(exerciseRow) {
     setRow.querySelector(".set-row__remove").disabled = setRows.length === 1;
   });
 
-  exerciseRow.querySelector(".exercise-row__count").textContent = plural(setRows.length, "serie", "series");
+  exerciseRow.querySelector(".exercise-row__count").textContent =
+    `${plural(setRows.length, "serie", "series")} · descanso ${formatTime(Number(exerciseRow.dataset.rest))}`;
   exerciseRow.querySelector(".exercise-row__add-set").disabled = setRows.length >= MAX_SETS;
 }
 
@@ -394,6 +469,8 @@ function openEditor(workout = null, { asCopy = false } = {}) {
 
   form.reset();
   exerciseFields.replaceChildren();
+  // Antes de agregar las tarjetas: sus separadores lo muestran
+  editorRestBetweenExercises = workout?.restBetweenExercises ?? DEFAULT_REST_BETWEEN_EXERCISES;
 
   if (workout) {
     editorTitle.textContent = asCopy ? "Copia de entrenamiento" : "Editar entrenamiento";
@@ -446,7 +523,7 @@ form.addEventListener("submit", (event) => {
 
   const exercises = [...exerciseFields.children].map((row) => ({
     name: row.querySelector(".exercise-row__name").value.trim(),
-    rest: Number(row.querySelector(".exercise-row__rest").value),
+    rest: Number(row.dataset.rest),
     sets: [...row.querySelectorAll(".set-row")].map((setRow) => ({
       reps: Number(setRow.querySelector(".set-row__reps").value),
       weight: readWeight(setRow.querySelector(".set-row__weight")),
@@ -454,16 +531,18 @@ form.addEventListener("submit", (event) => {
   }));
 
   const name = workoutNameInput.value.trim();
+  const restBetweenExercises = editorRestBetweenExercises;
 
   if (editingId) {
     // Reemplaza los datos y conserva el id y la fecha de creación
     workouts = workouts.map((workout) =>
-      workout.id === editingId ? { ...workout, name, exercises } : workout
+      workout.id === editingId ? { ...workout, name, restBetweenExercises, exercises } : workout
     );
   } else {
     workouts.push({
       id: String(Date.now()),
       name,
+      restBetweenExercises,
       exercises,
       createdAt: new Date().toISOString(),
     });
@@ -528,10 +607,12 @@ function renderPreview() {
 
   previewTitle.textContent = workout.name;
   previewSummary.textContent = describeWorkout(workout);
-  previewList.replaceChildren(...workout.exercises.map(renderPreviewItem));
+  previewList.replaceChildren(
+    ...withRestSeparators(workout.exercises.map(renderPreviewItem), workout.restBetweenExercises)
+  );
 }
 
-// Una fila por ejercicio: imagen, nombre y "3 series × 10 reps" (los pesos no se muestran acá)
+// Una fila por ejercicio: imagen, nombre y "3 series × 10 reps · descanso 1:30" (sin pesos)
 function renderPreviewItem(exercise) {
   const item = document.createElement("li");
   item.className = "preview-item";
@@ -545,7 +626,7 @@ function renderPreviewItem(exercise) {
 
   const detail = document.createElement("span");
   detail.className = "preview-item__detail";
-  detail.textContent = describeSetsLong(exercise.sets);
+  detail.textContent = `${describeSetsLong(exercise.sets)} · descanso ${formatTime(exercise.rest)}`;
 
   text.append(name, detail);
   item.append(createExerciseThumb(exercise.name), text);
@@ -588,6 +669,16 @@ previewMenuBtn.addEventListener("click", () => {
   openActionMenu(workout.name, [
     { label: "Renombrar", action: () => openRename(workout) },
     {
+      label: `Descanso entre ejercicios · ${formatTime(workout.restBetweenExercises)}`,
+      action: () =>
+        openRestDialog({
+          title: "Descanso entre ejercicios",
+          text: "Se usa al pasar de un ejercicio al siguiente.",
+          seconds: workout.restBetweenExercises,
+          onSave: (restBetweenExercises) => updateWorkout(workout.id, { restBetweenExercises }),
+        }),
+    },
+    {
       label: "Duplicar",
       action: () => {
         preview.close();
@@ -615,10 +706,53 @@ function openRename(workout) {
 renameDialog.addEventListener("close", () => {
   if (renameDialog.returnValue !== "save") return;
 
-  const name = renameInput.value.trim();
-  workouts = workouts.map((workout) => (workout.id === previewId ? { ...workout, name } : workout));
+  updateWorkout(previewId, { name: renameInput.value.trim() });
+});
+
+// Cambia algunos datos de un entrenamiento guardado (ej: el nombre) sin pasar por el editor
+function updateWorkout(id, changes) {
+  workouts = workouts.map((workout) => (workout.id === id ? { ...workout, ...changes } : workout));
   saveWorkouts();
   renderWorkouts();
+}
+
+// --- Cambiar un descanso (hoja con minutos y segundos) ---
+
+// Qué hacer al guardar la hoja abierta; null si está cerrada
+let onRestSave = null;
+
+function openRestDialog({ title, text, seconds, onSave }) {
+  onRestSave = onSave;
+  restTitle.textContent = title;
+  restText.textContent = text;
+  restMinutesInput.value = Math.floor(seconds / 60);
+  restSecondsInput.value = String(seconds % 60).padStart(2, "0");
+  checkRestLimits();
+  restDialog.returnValue = "";
+  restDialog.showModal();
+}
+
+function readRestSeconds() {
+  return Number(restMinutesInput.value) * 60 + Number(restSecondsInput.value);
+}
+
+// Cada campo tiene sus propios límites; acá se chequea el total (de 0:05 a 10:00)
+function checkRestLimits() {
+  const seconds = readRestSeconds();
+  restSecondsInput.setCustomValidity(
+    seconds < MIN_REST || seconds > MAX_REST
+      ? `El descanso tiene que ser de ${formatTime(MIN_REST)} a ${formatTime(MAX_REST)}.`
+      : ""
+  );
+}
+
+restMinutesInput.addEventListener("input", checkRestLimits);
+restSecondsInput.addEventListener("input", checkRestLimits);
+
+// "save" = Guardar o Enter; vacío = Cancelar, Escape, "atrás" o tocar el fondo
+restDialog.addEventListener("close", () => {
+  if (restDialog.returnValue === "save") onRestSave(readRestSeconds());
+  onRestSave = null;
 });
 
 // --- Timer de descanso ---
@@ -641,8 +775,9 @@ function timeLeftMs() {
   return timer.paused ? timer.remainingMs : Math.max(0, timer.endsAt - Date.now());
 }
 
-// subtitle: el ejercicio, o qué viene después si se usa desde el modo entrenar
-function startRestTimer(subtitle, seconds) {
+// subtitle: el ejercicio, o qué viene después si se usa desde el modo entrenar.
+// label: "Descanso", o "Descanso entre ejercicios" al pasar al siguiente.
+function startRestTimer(subtitle, seconds, label = "Descanso") {
   prepareSound();
 
   timer = {
@@ -654,6 +789,7 @@ function startRestTimer(subtitle, seconds) {
     intervalId: setInterval(updateTimer, 250),
   };
 
+  timerLabel.textContent = label;
   timerExercise.textContent = subtitle;
   timerPauseBtn.textContent = "Pausar";
   showTimerDone(false);
@@ -834,7 +970,7 @@ function renderSession() {
     step.append(name, count);
     return step;
   });
-  sessionPlan.replaceChildren(...steps);
+  sessionPlan.replaceChildren(...withRestSeparators(steps, workout.restBetweenExercises));
 }
 
 sessionDoneBtn.addEventListener("click", () => {
@@ -879,12 +1015,15 @@ sessionDoneBtn.addEventListener("click", () => {
   }
   renderSession();
 
-  // Descanso del ejercicio recién hecho, avisando qué viene después
+  // Entre series, el descanso del ejercicio; al pasar al siguiente, el del entrenamiento.
+  // En los dos casos avisa qué viene después.
   const next = workout.exercises[session.exerciseIndex];
-  startRestTimer(
-    `Siguiente: ${next.name} · serie ${session.set} de ${next.sets.length}`,
-    exercise.rest ?? DEFAULT_REST
-  );
+  const subtitle = `Siguiente: ${next.name} · serie ${session.set} de ${next.sets.length}`;
+  if (isLastSet) {
+    startRestTimer(subtitle, workout.restBetweenExercises, "Descanso entre ejercicios");
+  } else {
+    startRestTimer(subtitle, exercise.rest);
+  }
 });
 
 // Copia lo hecho al historial. Es una copia: editar o borrar el entrenamiento después no la cambia.
