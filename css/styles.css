@@ -31,6 +31,8 @@
 * {
   box-sizing: border-box;
   margin: 0;
+  /* Sin el recuadro (cuadrado) que pinta el celular al tocar: cada botón tiene su propio efecto al presionarlo */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -189,6 +191,10 @@ body {
   white-space: nowrap;
 }
 
+.nav-bar__item:active {
+  transform: scale(0.94);
+}
+
 .nav-bar__item--active {
   min-width: 0;
   padding: 0 16px;
@@ -198,6 +204,69 @@ body {
 
 .nav-bar__item--active .nav-bar__label {
   display: inline;
+}
+
+/* Barra "Continuar": flota justo arriba de la barra inferior mientras hay un entrenamiento en pausa */
+.has-resume-bar {
+  --nav-space: calc(160px + env(safe-area-inset-bottom));
+}
+
+.resume-bar {
+  position: fixed;
+  z-index: 1;
+  left: 50%;
+  bottom: calc(82px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: calc(min(100%, 480px) - 2 * var(--gutter));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  /* Gris apenas más claro que las tarjetas: un recordatorio, no un llamado urgente */
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 92%, var(--text));
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.resume-bar[hidden] {
+  display: none;
+}
+
+.resume-bar:active {
+  opacity: 0.9;
+}
+
+.resume-bar__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.resume-bar__name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-bar__meta {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.resume-bar__action {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
 }
 
 /* Tarjeta: el fondo y las esquinas de todos los bloques de la app */
@@ -856,6 +925,16 @@ body {
   padding: 0 var(--gutter);
 }
 
+/* "Terminar" arriba a la derecha: terminar antes, o directo si ya está todo hecho */
+.session__finish {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.session__finish[hidden] {
+  display: none;
+}
+
 .session__finished {
   padding: 32px 0;
   text-align: center;
@@ -1017,6 +1096,19 @@ body {
   color: var(--danger);
 }
 
+/* Explicación corta debajo de una opción (ej: "Ausente por un tiempo") */
+.menu-item:has(.menu-item__hint) {
+  padding-top: 8px;
+}
+
+.menu-item__hint {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .sheet__title {
   font-size: 1.125rem;
   font-weight: 700;
@@ -1029,6 +1121,39 @@ body {
 
 .sheet .btn--ghost {
   background: var(--bg);
+}
+
+/* "¿Terminaste?": series completas e incompletas, en dos números grandes lado a lado */
+.finish-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.finish-stats__item {
+  display: flex;
+  flex-direction: column;
+}
+
+.finish-stats__item + .finish-stats__item {
+  border-left: 1px solid var(--border);
+}
+
+.finish-stats__number {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.finish-stats__item:first-child .finish-stats__number {
+  color: var(--accent);
+}
+
+.finish-stats__label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
 }
 
 /* Informe: por ahora, el historial. Una tarjeta por sesión, que se despliega al tocarla */

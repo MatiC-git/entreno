@@ -1,6 +1,7 @@
 // Claves con las que se guardan los entrenamientos y el historial en el navegador
 const STORAGE_KEY = "entreno.workouts";
 const HISTORY_KEY = "entreno.history";
+const SESSION_KEY = "entreno.session"; // el entrenamiento en curso, para no perderlo si se cierra la app
 
 // Descansos por defecto en segundos (también para entrenamientos guardados antes de tener estos campos):
 // entre series de un mismo ejercicio, y entre un ejercicio y el siguiente
@@ -47,10 +48,21 @@ const pickerList = document.getElementById("picker-list");
 const sessionFinished = document.getElementById("session-finished");
 const sessionSummary = document.getElementById("session-summary");
 const sessionPlan = document.getElementById("session-plan");
-const sessionExitBtn = document.getElementById("session-exit-btn");
+const sessionPauseBtn = document.getElementById("session-pause-btn");
 const sessionDoneBtn = document.getElementById("session-done-btn");
+const pauseDialog = document.getElementById("pause-dialog");
+const sessionFinishBtn = document.getElementById("session-finish-btn");
+const sessionFinishedTitle = document.getElementById("session-finished-title");
 const exitDialog = document.getElementById("exit-dialog");
-const exitText = document.getElementById("exit-text");
+const finishDialog = document.getElementById("finish-dialog");
+const finishText = document.getElementById("finish-text");
+const finishDone = document.getElementById("finish-done");
+const finishDoneLabel = document.getElementById("finish-done-label");
+const finishPending = document.getElementById("finish-pending");
+const finishPendingLabel = document.getElementById("finish-pending-label");
+const resumeBar = document.getElementById("resume-bar");
+const resumeBarName = document.getElementById("resume-bar-name");
+const resumeBarMeta = document.getElementById("resume-bar-meta");
 const views = [...document.querySelectorAll(".view")];
 const viewButtons = [...document.querySelectorAll("[data-open-view]")];
 const directorySearch = document.getElementById("directory-search");
@@ -667,6 +679,7 @@ previewBackBtn.addEventListener("click", () => preview.close());
 
 // Se cierra la vista previa antes de empezar: al terminar se vuelve a la lista
 previewStartBtn.addEventListener("click", () => {
+  if (!confirmReplaceSession()) return;
   const workout = previewWorkout();
   preview.close();
   startSession(workout);
@@ -877,14 +890,14 @@ restTimer.addEventListener("close", () => {
   clearInterval(timer?.intervalId);
   clearTimeout(timer?.closeTimeoutId);
   timer = null;
-  if (!session) releaseScreen();
+  if (!sessionActive()) releaseScreen();
 });
 
 // Al volver a la app, actualizar enseguida y volver a pedir que no se apague la pantalla
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   updateTimer();
-  if ((timer && !timer.done) || session) keepScreenOn();
+  if ((timer && !timer.done) || sessionActive()) keepScreenOn();
 });
 
 // El celular solo deja reproducir sonido si se prepara durante un toque del usuario
@@ -922,7 +935,7 @@ async function keepScreenOn() {
   } catch {
     wakeLock = null;
   }
-  if (!timer && !session) releaseScreen();
+  if (!timer && !sessionActive()) releaseScreen();
 }
 
 function releaseScreen() {
@@ -937,13 +950,23 @@ function releaseScreen() {
 // ({ exerciseIndex, setIndex, done, result, row, check, weight, reps }); la serie actual es la primera sin hacer.
 // result: lo que se hizo de verdad ({ reps, weight }), lo que va al historial.
 // cards: la tarjeta de cada ejercicio.
+// away: en pausa con "Ausente por un tiempo" (la pantalla está cerrada y se ve la barra "Continuar").
+// El tiempo entrenado no cuenta las pausas: elapsedMs es lo acumulado hasta resumedAt (null si está en pausa).
 let session = null;
 
-function startSession(workout) {
+function sessionActive() {
+  return Boolean(session && !session.away);
+}
+
+// saved: lo guardado en el navegador (ver saveSessionState), para retomar donde quedó
+function startSession(workout, saved = null) {
   session = {
     workout,
     finished: false,
-    startedAt: new Date().toISOString(),
+    away: Boolean(saved),
+    startedAt: saved?.startedAt ?? new Date().toISOString(),
+    elapsedMs: saved?.elapsedMs ?? 0,
+    resumedAt: saved ? null : Date.now(),
     sets: [],
     cards: [],
   };
@@ -955,12 +978,19 @@ function startSession(workout) {
   );
   sessionExercises.hidden = false;
   sessionFinished.hidden = true;
+  sessionFinishBtn.hidden = false;
 
-  // Solo el primer ejercicio abierto; los demás se abren a medida que se llega a ellos
-  setExpanded(cards[0], true);
+  saved?.sets.forEach((savedSet, index) => restoreSet(session.sets[index], savedSet));
+
+  // Solo el ejercicio que toca abierto; los demás se abren a medida que se llega a ellos
+  setExpanded(cards[currentSet()?.exerciseIndex ?? 0], true);
   updateSession();
 
-  sessionDialog.showModal();
+  if (saved) {
+    renderResumeBar();
+    return;
+  }
+  if (!sessionDialog.open) sessionDialog.showModal();
   sessionBody.scrollTop = 0;
   keepScreenOn();
 }
@@ -999,13 +1029,13 @@ function renderSessionExercise(exercise, exerciseIndex) {
     entry.reps.value = set.reps;
 
     entry.check.addEventListener("click", () => toggleSet(entry));
-    // Corregir una serie ya marcada también cuenta
-    entry.weight.addEventListener("change", () => {
-      if (entry.done) saveSetResult(entry);
-    });
-    entry.reps.addEventListener("change", () => {
-      if (entry.done) saveSetResult(entry);
-    });
+    // Corregir una serie ya marcada también cuenta. Lo escrito se guarda aunque no esté marcada.
+    for (const input of [entry.weight, entry.reps]) {
+      input.addEventListener("change", () => {
+        if (entry.done) saveSetResult(entry);
+        saveSessionState();
+      });
+    }
 
     session.sets.push(entry);
     setFields.append(row);
@@ -1023,7 +1053,11 @@ function countDoneSets() {
   return session.sets.filter((entry) => entry.done).length;
 }
 
-// Marca la serie actual, cuenta lo hecho por ejercicio y cambia el botón de abajo
+function sessionElapsedMs() {
+  return session.elapsedMs + (session.resumedAt ? Date.now() - session.resumedAt : 0);
+}
+
+// Marca la serie actual, cuenta lo hecho por ejercicio, cambia el botón de abajo y guarda todo
 function updateSession() {
   const current = currentSet();
 
@@ -1044,6 +1078,7 @@ function updateSession() {
   });
 
   sessionDoneBtn.textContent = current ? "Registrar la siguiente serie" : "Terminar";
+  saveSessionState();
 }
 
 // Anota lo hecho en la serie (va al historial). El peso además queda guardado en el entrenamiento:
@@ -1086,6 +1121,7 @@ function editSessionRestBetweenExercises() {
     onSave: (seconds) => {
       workout.restBetweenExercises = seconds;
       saveWorkouts();
+      saveSessionState();
       for (const separator of sessionPlan.querySelectorAll(".rest-separator")) {
         updateRestSeparatorTime(separator, seconds, true);
       }
@@ -1131,7 +1167,7 @@ function toggleSet(entry) {
 
 sessionDoneBtn.addEventListener("click", () => {
   if (session.finished) {
-    sessionDialog.close();
+    endSession();
     return;
   }
 
@@ -1145,21 +1181,58 @@ sessionDoneBtn.addEventListener("click", () => {
   }
 });
 
-// Todo hecho y "Terminar": queda en el historial y se muestra el cierre
+// "Terminar" de arriba: con todo hecho termina directo; si faltan series, pregunta con "¿Terminaste?"
+sessionFinishBtn.addEventListener("click", () => {
+  if (!currentSet()) {
+    finishSession();
+    return;
+  }
+
+  const done = countDoneSets();
+  const pending = countSets(session.workout) - done;
+  finishText.textContent = done
+    ? "Solo las series completas se guardan en el historial."
+    : "No marcaste ninguna serie: no se guarda nada en el historial.";
+  finishDone.textContent = done;
+  finishDoneLabel.textContent = done === 1 ? "Serie completa" : "Series completas";
+  finishPending.textContent = pending;
+  finishPendingLabel.textContent = pending === 1 ? "Serie incompleta" : "Series incompletas";
+  finishDialog.returnValue = "";
+  finishDialog.showModal();
+});
+
+// "finish" = Terminar; vacío = Seguir entrenando, Escape, "atrás" o tocar el fondo
+finishDialog.addEventListener("close", () => {
+  if (finishDialog.returnValue === "finish") finishSession();
+});
+
+// Guarda lo hecho en el historial y muestra el cierre. Sin series hechas no hay nada que guardar: sale directo.
 function finishSession() {
+  if (countDoneSets() === 0) {
+    endSession();
+    return;
+  }
+
+  const completed = currentSet() === null;
   session.finished = true;
-  saveSessionToHistory(true);
+  saveSessionToHistory(completed);
+  clearSavedSession(); // ya está en el historial: si se cierra la app ahora, no hay nada que retomar
 
   sessionExercises.hidden = true;
   sessionFinished.hidden = false;
-  sessionSummary.textContent = describeWorkout(session.workout);
+  sessionFinishBtn.hidden = true;
+  sessionFinishedTitle.textContent = completed ? "¡Entrenamiento completo!" : "Entrenamiento terminado";
+  sessionSummary.textContent = completed
+    ? describeWorkout(session.workout)
+    : `${countDoneSets()} de ${plural(countSets(session.workout), "serie", "series")}`;
   sessionDoneBtn.textContent = "Listo";
   sessionBody.scrollTop = 0;
 }
 
 // Copia lo hecho al historial (con el peso y las reps reales de cada serie).
 // Es una copia: editar o borrar el entrenamiento después no la cambia.
-// completed = false cuando se sale a la mitad y se elige "Guardar y salir".
+// completed = false cuando se termina antes, con series sin hacer.
+// durationMs: el tiempo entrenado, sin contar las pausas.
 function saveSessionToHistory(completed) {
   const { workout, sets, startedAt } = session;
 
@@ -1176,6 +1249,7 @@ function saveSessionToHistory(completed) {
     workoutName: workout.name,
     startedAt,
     finishedAt: new Date().toISOString(),
+    durationMs: sessionElapsedMs(),
     completed,
     plannedSets: countSets(workout),
     exercises,
@@ -1183,44 +1257,188 @@ function saveSessionToHistory(completed) {
   saveHistory();
 }
 
-// Sin series hechas (o ya terminado) no hay nada que guardar: sale directo.
-// Si no, pregunta: guardar y salir, salir sin guardar o seguir entrenando.
-function exitSession() {
-  if (session.finished || countDoneSets() === 0) {
-    sessionDialog.close();
+// Sale del modo entrenar y se olvida de la sesión (ya guardada en el historial, o descartada)
+function endSession() {
+  clearSavedSession();
+  session = null;
+  if (sessionDialog.open) sessionDialog.close();
+  renderResumeBar();
+}
+
+// --- Pausa: menú, "Ausente por un tiempo" y salir ---
+
+function openPauseMenu() {
+  if (session.finished) {
+    endSession();
     return;
   }
+  pauseDialog.returnValue = "";
+  pauseDialog.showModal();
+}
 
-  const planned = plural(countSets(session.workout), "serie", "series");
-  exitText.textContent = `Hiciste ${countDoneSets()} de ${planned}.`;
+// returnValue vacío = Continuar, Escape, "atrás" o tocar el fondo: se sigue entrenando
+pauseDialog.addEventListener("close", () => {
+  const value = pauseDialog.returnValue;
+  if (value === "away") goAway();
+  else if (value === "restart") restartSession();
+  else if (value === "exit") exitSession();
+});
+
+// Cierra el modo entrenar sin perder nada: queda guardado y la barra "Continuar" lo retoma
+function goAway() {
+  session.elapsedMs = sessionElapsedMs();
+  session.resumedAt = null;
+  session.away = true;
+  saveSessionState();
+  sessionDialog.close();
+  renderResumeBar();
+}
+
+function resumeSession() {
+  session.away = false;
+  session.resumedAt = Date.now();
+  saveSessionState();
+  renderResumeBar();
+  sessionDialog.showModal();
+  currentSet()?.row.scrollIntoView({ block: "center" });
+  keepScreenOn();
+}
+
+// Vuelve a empezar el mismo entrenamiento con todas las series sin marcar (los pesos usados quedan)
+function restartSession() {
+  if (countDoneSets() > 0 && !confirm("¿Reiniciar? Se desmarcan las series hechas.")) return;
+  startSession(session.workout);
+}
+
+// Sin series hechas no hay nada que guardar ni descartar: sale directo. Si no, pregunta qué hacer con lo hecho.
+function exitSession() {
+  if (countDoneSets() === 0) {
+    endSession();
+    return;
+  }
   exitDialog.returnValue = "";
   exitDialog.showModal();
 }
 
-// returnValue es el "value" del botón tocado; vacío si se cerró con Escape/atrás (= seguir)
+// returnValue es el "value" del botón tocado; vacío si se cerró con Continuar, Escape o "atrás"
 exitDialog.addEventListener("close", () => {
-  if (exitDialog.returnValue === "save") {
-    saveSessionToHistory(currentSet() === null);
-    sessionDialog.close();
-  } else if (exitDialog.returnValue === "discard") {
-    sessionDialog.close();
-  }
+  if (exitDialog.returnValue === "save") finishSession();
+  else if (exitDialog.returnValue === "discard") endSession();
 });
 
-sessionExitBtn.addEventListener("click", exitSession);
+sessionPauseBtn.addEventListener("click", openPauseMenu);
 
-// "Atrás" en el celular o Escape: pasar por la misma confirmación que "Salir"
+// "Atrás" en el celular o Escape: el mismo menú que "Pausa"
 sessionDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
-  exitSession();
+  openPauseMenu();
 });
 
+// Se cierra al terminar, descartar o quedar en pausa
 sessionDialog.addEventListener("close", () => {
-  session = null;
   if (!timer) releaseScreen();
   renderWorkouts(); // las tarjetas muestran los pesos actualizados
   renderHistory(); // y el informe, la sesión recién guardada
 });
+
+// --- Sesión guardada en el navegador ---
+
+// Lo justo para rearmar la pantalla: el entrenamiento (una copia, por si después se edita o se borra),
+// los tiempos y, por serie, si está hecha y lo escrito en peso y reps
+function saveSessionState() {
+  if (!session || session.finished) return;
+  const state = {
+    workout: session.workout,
+    startedAt: session.startedAt,
+    elapsedMs: sessionElapsedMs(),
+    sets: session.sets.map((entry) => ({
+      done: entry.done,
+      result: entry.result,
+      weight: entry.weight.value,
+      reps: entry.reps.value,
+    })),
+  };
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  } catch {
+    // Sin guardado, la sesión dura mientras la app esté abierta
+  }
+}
+
+function clearSavedSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Nada que borrar
+  }
+}
+
+function restoreSet(entry, saved) {
+  if (!entry || !saved) return;
+  entry.done = saved.done;
+  entry.result = saved.result;
+  entry.weight.value = saved.weight;
+  entry.reps.value = saved.reps;
+}
+
+// Al abrir la app: si quedó una sesión a medias, se retoma en pausa (se cerró la app o se fue "Ausente").
+// Si el entrenamiento sigue igual, se usa el guardado (así los pesos nuevos le llegan); si se editó, la copia.
+function loadSavedSession() {
+  if (session) return; // ya se empezó otro antes de que terminara de cargar
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(SESSION_KEY));
+  } catch {
+    return;
+  }
+  if (!saved?.workout || !Array.isArray(saved.sets)) return;
+
+  const workout = migrateWorkout(saved.workout);
+  const live = workouts.find((item) => item.id === workout.id);
+  startSession(live && sameStructure(live, workout) ? live : workout, saved);
+}
+
+// Mismos ejercicios, en el mismo orden y con la misma cantidad de series
+function sameStructure(a, b) {
+  return (
+    a.exercises.length === b.exercises.length &&
+    a.exercises.every(
+      (exercise, index) =>
+        exercise.name === b.exercises[index].name && exercise.sets.length === b.exercises[index].sets.length
+    )
+  );
+}
+
+// Al irse de la app (cambiar de app, apagar la pantalla) se guarda el tiempo hasta ese momento
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveSessionState();
+});
+
+// --- Barra "Continuar" ---
+
+function renderResumeBar() {
+  const visible = Boolean(session?.away);
+  resumeBar.hidden = !visible;
+  document.body.classList.toggle("has-resume-bar", visible);
+  if (!visible) return;
+
+  resumeBarName.textContent = session.workout.name;
+  resumeBarMeta.textContent = [
+    "En pausa",
+    `${countDoneSets()}/${countSets(session.workout)} series`,
+    formatMinutes(session.elapsedMs),
+  ].join(" · ");
+}
+
+resumeBar.addEventListener("click", resumeSession);
+
+// Empezar otro entrenamiento con uno en pausa: el de la pausa se descarta (preguntando antes)
+function confirmReplaceSession() {
+  if (!session) return true;
+  if (!confirm(`Tenés "${session.workout.name}" en pausa. ¿Descartarlo y empezar este?`)) return false;
+  endSession();
+  return true;
+}
 
 // --- Historial ---
 
@@ -1233,11 +1451,16 @@ const historyDateFormat = new Intl.DateTimeFormat("es-AR", {
   hourCycle: "h23", // "21:33" en vez de "09:33 p. m."
 });
 
-// 42 → "42 min", 75 → "1 h 15 min"
-function formatDuration(startedAt, finishedAt) {
-  const minutes = Math.max(1, Math.round((new Date(finishedAt) - new Date(startedAt)) / 60000));
+// En milisegundos: 42 min → "42 min", 75 min → "1 h 15 min"
+function formatMinutes(ms) {
+  const minutes = Math.max(1, Math.round(ms / 60000));
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+// Las sesiones viejas no tienen durationMs (no había pausas): de la hora de inicio a la de fin
+function formatDuration(entry) {
+  return formatMinutes(entry.durationMs ?? new Date(entry.finishedAt) - new Date(entry.startedAt));
 }
 
 // Una serie del historial: "10 × 40 kg", o "10 reps" si no tenía peso
@@ -1269,7 +1492,7 @@ function renderHistoryEntry(entry) {
   meta.className = "history-entry__meta";
   meta.textContent = [
     historyDateFormat.format(new Date(entry.finishedAt)),
-    formatDuration(entry.startedAt, entry.finishedAt),
+    formatDuration(entry),
     entry.completed ? plural(doneSets, "serie", "series") : `${doneSets}/${entry.plannedSets} series`,
   ].join(" · ");
 
@@ -1581,7 +1804,8 @@ for (const button of viewButtons) {
 renderWorkouts();
 renderHistory();
 showView(location.hash.slice(1));
-loadExerciseCatalog();
+// La sesión guardada se rearma después del catálogo, así sus tarjetas tienen imagen
+loadExerciseCatalog().then(loadSavedSession);
 
 // --- App instalable (PWA) ---
 
