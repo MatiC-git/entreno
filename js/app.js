@@ -245,45 +245,103 @@ function describeWorkout(workout) {
 
 // --- Editor de entrenamiento ---
 
-// Si recibe un ejercicio, completa la fila con sus datos
-function addExerciseRow(exercise) {
+// Cada ejercicio es una tarjeta plegable. Si recibe un ejercicio, la completa con sus datos.
+function addExerciseRow(exercise, { expanded = true } = {}) {
   const row = exerciseRowTemplate.content.firstElementChild.cloneNode(true);
+  const nameInput = row.querySelector(".exercise-row__name");
 
   if (exercise) {
-    row.querySelector(".exercise-row__name").value = exercise.name;
+    nameInput.value = exercise.name;
     row.querySelector(".exercise-row__rest").value = exercise.rest ?? DEFAULT_REST;
     exercise.sets.forEach((set) => addSetRow(row, set));
   } else {
     for (let i = 0; i < DEFAULT_SETS; i++) addSetRow(row);
   }
 
-  row.querySelector(".exercise-row__remove").addEventListener("click", () => {
-    row.remove();
-    updateExerciseButtons();
+  row.querySelector(".exercise-row__toggle").addEventListener("click", () => {
+    setExpanded(row, row.querySelector(".exercise-row__body").hidden);
   });
 
-  row.querySelector(".exercise-row__pick").addEventListener("click", () => {
-    openPicker(row.querySelector(".exercise-row__name"));
-  });
+  row.querySelector(".exercise-row__menu").addEventListener("click", () => openExerciseMenu(row));
 
   row.querySelector(".exercise-row__up").addEventListener("click", (event) => {
-    row.previousElementSibling?.before(row);
+    exerciseFields.insertBefore(row, row.previousElementSibling);
     keepFocus(event.currentTarget, row.querySelector(".exercise-row__down"));
   });
 
   row.querySelector(".exercise-row__down").addEventListener("click", (event) => {
-    row.nextElementSibling?.after(row);
+    exerciseFields.insertBefore(row, row.nextElementSibling?.nextElementSibling ?? null);
     keepFocus(event.currentTarget, row.querySelector(".exercise-row__up"));
   });
+  row.querySelector(".exercise-row__pick").addEventListener("click", () => openPicker(nameInput));
+  nameInput.addEventListener("input", () => updateExerciseHeader(row));
 
   row.querySelector(".exercise-row__add-set").addEventListener("click", () => {
     const setRow = addSetRow(row);
-    setRow.querySelector(".set-row__reps").focus();
+    setRow.querySelector(".set-row__weight").focus();
   });
 
+  updateExerciseHeader(row);
+  setExpanded(row, expanded);
   exerciseFields.append(row);
-  updateExerciseButtons();
+  updateMoveButtons();
   return row;
+}
+
+// ▲ no va en el primero ni ▼ en el último. Se llama después de agregar, mover o eliminar.
+function updateMoveButtons() {
+  const rows = [...exerciseFields.children];
+  rows.forEach((row, index) => {
+    row.querySelector(".exercise-row__up").disabled = index === 0;
+    row.querySelector(".exercise-row__down").disabled = index === rows.length - 1;
+  });
+}
+
+// Mover la tarjeta le saca el foco al botón; se lo devolvemos (o al opuesto si quedó deshabilitado)
+// para poder seguir moviendo el mismo ejercicio sin volver a buscarlo
+function keepFocus(button, fallback) {
+  updateMoveButtons();
+  (button.disabled ? fallback : button).focus();
+  button.closest(".exercise-row").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function setExpanded(row, expanded) {
+  row.querySelector(".exercise-row__body").hidden = !expanded;
+  row.querySelector(".exercise-row__toggle").setAttribute("aria-expanded", String(expanded));
+}
+
+// Cabecera de la tarjeta: nombre e imagen. La imagen solo se reemplaza si cambia
+// el ejercicio del catálogo, así no parpadea con cada letra que se escribe.
+function updateExerciseHeader(row) {
+  const name = row.querySelector(".exercise-row__name").value.trim();
+  const title = row.querySelector(".exercise-row__title");
+  title.textContent = name || "Ejercicio nuevo";
+  title.classList.toggle("exercise-row__title--empty", !name);
+
+  const image = exerciseCatalog.get(normalizeName(name))?.image ?? "";
+  if (row.dataset.image !== image) {
+    row.dataset.image = image;
+    row.querySelector(".exercise-row__thumb").replaceChildren(createExerciseThumb(name));
+  }
+}
+
+// Menú ⋮ del ejercicio (más adelante suma otras opciones). Siempre tiene que quedar un ejercicio.
+function openExerciseMenu(row) {
+  const nameInput = row.querySelector(".exercise-row__name");
+  const isOnly = exerciseFields.children.length === 1;
+
+  openActionMenu(
+    nameInput.value.trim() || "Ejercicio nuevo",
+    [
+      { label: "Cambiar ejercicio", action: () => openPicker(nameInput) },
+      !isOnly && { label: "Eliminar", danger: true, action: () => removeExercise(row) },
+    ].filter(Boolean)
+  );
+}
+
+function removeExercise(row) {
+  row.remove();
+  updateMoveButtons();
 }
 
 // Si no recibe una serie, copia los valores de la última: lo más común es repetirlos
@@ -312,37 +370,20 @@ function addSetRow(exerciseRow, set) {
   return setRow;
 }
 
-// Renumera las series y habilita o no los botones (mínimo 1 serie, máximo MAX_SETS)
+// Renumera las series, actualiza "N series" en la cabecera y habilita o no los botones
+// (mínimo 1 serie, máximo MAX_SETS)
 function updateSetRows(exerciseRow) {
   const setRows = [...exerciseRow.querySelectorAll(".set-row")];
 
   setRows.forEach((setRow, index) => {
-    setRow.querySelector(".set-row__label").textContent = `Serie ${index + 1}`;
+    setRow.querySelector(".set-row__label").textContent = index + 1;
     setRow.querySelector(".set-row__reps").setAttribute("aria-label", `Repeticiones de la serie ${index + 1}`);
     setRow.querySelector(".set-row__weight").setAttribute("aria-label", `Peso en kg de la serie ${index + 1}`);
     setRow.querySelector(".set-row__remove").disabled = setRows.length === 1;
   });
 
+  exerciseRow.querySelector(".exercise-row__count").textContent = plural(setRows.length, "serie", "series");
   exerciseRow.querySelector(".exercise-row__add-set").disabled = setRows.length >= MAX_SETS;
-}
-
-// Siempre tiene que quedar al menos un ejercicio.
-// También deshabilita ↑ en el primero y ↓ en el último, así que se llama después de cada cambio de orden.
-function updateExerciseButtons() {
-  const rows = [...exerciseFields.children];
-  rows.forEach((row, index) => {
-    row.querySelector(".exercise-row__remove").disabled = rows.length === 1;
-    row.querySelector(".exercise-row__up").disabled = index === 0;
-    row.querySelector(".exercise-row__down").disabled = index === rows.length - 1;
-  });
-}
-
-// Mover la fila le saca el foco al botón; se lo devolvemos (o al opuesto si quedó deshabilitado)
-// para poder seguir moviendo el mismo ejercicio sin volver a buscarlo
-function keepFocus(button, fallback) {
-  updateExerciseButtons();
-  (button.disabled ? fallback : button).focus();
-  button.closest(".exercise-row").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 // Sin argumento crea uno nuevo; con un entrenamiento, lo abre para editar.
@@ -357,7 +398,8 @@ function openEditor(workout = null, { asCopy = false } = {}) {
   if (workout) {
     editorTitle.textContent = asCopy ? "Copia de entrenamiento" : "Editar entrenamiento";
     workoutNameInput.value = asCopy ? copyName(workout.name) : workout.name;
-    workout.exercises.forEach((exercise) => addExerciseRow(exercise));
+    // Solo la primera tarjeta abierta: así se ve el entrenamiento entero de un vistazo
+    workout.exercises.forEach((exercise, index) => addExerciseRow(exercise, { expanded: index === 0 }));
   } else {
     editorTitle.textContent = "Nuevo entrenamiento";
     addExerciseRow();
@@ -386,6 +428,17 @@ addExerciseBtn.addEventListener("click", () => {
 });
 
 cancelBtn.addEventListener("click", () => editor.close());
+
+// Un campo con error dentro de una tarjeta plegada no se puede mostrar: se abre la tarjeta.
+// "invalid" no sube por el formulario, por eso se escucha en la fase de captura (true).
+form.addEventListener(
+  "invalid",
+  (event) => {
+    const row = event.target.closest(".exercise-row");
+    if (row) setExpanded(row, true);
+  },
+  true
+);
 
 // El navegador valida los campos "required" antes de llegar acá
 form.addEventListener("submit", (event) => {
@@ -1191,8 +1244,10 @@ function renderExerciseItem(entry, onPick) {
   return item;
 }
 
+// Avisa con "input" como si se hubiera escrito, así la tarjeta actualiza su nombre e imagen
 function pickExercise(entry) {
   pickerTarget.value = entry.name;
+  pickerTarget.dispatchEvent(new Event("input", { bubbles: true }));
   picker.close();
 }
 
