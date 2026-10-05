@@ -439,10 +439,52 @@ body {
 .exercise-fields {
   list-style: none;
   padding: 0;
+  margin-bottom: 12px;
 }
 
-.exercise-row {
-  margin-bottom: 12px;
+/* Separador "—— ⏱ 2:00 ——" con el descanso entre ejercicios (editor, vista previa y modo entrenar) */
+.rest-separator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-separator::before,
+.rest-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.rest-separator .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* En el editor se puede tocar para cambiarlo */
+.rest-separator--editable {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.rest-separator--editable:active {
+  opacity: 0.6;
+}
+
+/* El primer ejercicio no tiene uno antes */
+.exercise-row:first-child .rest-separator {
+  display: none;
 }
 
 .exercise-row .field__input {
@@ -671,25 +713,6 @@ body {
   cursor: default;
 }
 
-/* "Descanso entre series  [90] s" */
-.exercise-row__rest-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-}
-
-.exercise-row__rest-label {
-  flex: 1;
-}
-
-.exercise-row__rest-field .field__input {
-  width: 4rem;
-  padding: 0 4px;
-  text-align: center;
-}
-
 /* Vista previa: pantalla completa (comparte la base con el modo entrenar, más abajo)
    con la lista de ejercicios y Comenzar / Editar abajo */
 .preview__header {
@@ -761,6 +784,27 @@ body {
 .sheet__input {
   margin: 8px 0;
   background: var(--bg);
+}
+
+/* Hoja de descanso: "[02] : [00]" en grande */
+.rest-input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.rest-input .field__input {
+  width: 5.5rem;
+  min-height: 72px;
+  background: var(--bg);
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 /* Modo entrenar: pantalla completa con la serie actual en grande */
@@ -916,6 +960,10 @@ body {
 
 .session-step + .session-step {
   border-top: 1px solid var(--border);
+}
+
+.session__plan .rest-separator {
+  padding: 0 var(--gutter);
 }
 
 .session-step__name {

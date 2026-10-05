@@ -35,6 +35,10 @@
     <symbol id="icon-chevron" viewBox="0 0 24 24">
       <path d="M6 9l6 6 6-6"/>
     </symbol>
+    <symbol id="icon-timer" viewBox="0 0 24 24">
+      <circle cx="12" cy="13" r="8"/>
+      <path d="M12 9v4l2 2M10 2h4"/>
+    </symbol>
   </svg>
 
   <!-- Encabezado: logo al centro y perfil a la derecha -->
@@ -168,6 +172,23 @@
     </form>
   </dialog>
 
+  <!-- Cambiar un descanso (entre series o entre ejercicios): minutos y segundos, como "2:00" -->
+  <dialog class="sheet" id="rest-dialog" aria-labelledby="rest-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="rest-title"></h2>
+      <p class="sheet__text" id="rest-text"></p>
+      <div class="rest-input">
+        <input class="field__input" id="rest-minutes" type="number" inputmode="numeric"
+               min="0" max="10" required aria-label="Minutos">
+        <span aria-hidden="true">:</span>
+        <input class="field__input" id="rest-seconds" type="number" inputmode="numeric"
+               min="0" max="59" required aria-label="Segundos">
+      </div>
+      <button class="btn btn--primary" value="save">Guardar</button>
+      <button class="btn btn--ghost" value="" formnovalidate>Cancelar</button>
+    </form>
+  </dialog>
+
   <!-- Pantalla para crear o editar un entrenamiento -->
   <dialog class="editor" id="workout-editor" aria-labelledby="editor-title">
     <form class="editor__form" id="workout-form">
@@ -206,47 +227,50 @@
 
   <!-- Molde de cada ejercicio (una tarjeta plegable); app.js lo copia cada vez que se agrega uno -->
   <template id="exercise-row-template">
-    <li class="exercise-row card">
-      <!-- Tocar la cabecera pliega o despliega las series; ⋮ abre el menú del ejercicio -->
-      <div class="exercise-row__header">
-        <button class="exercise-row__toggle" type="button" aria-expanded="true">
-          <svg class="icon exercise-row__chevron"><use href="#icon-chevron"></use></svg>
-          <span class="exercise-row__thumb"></span>
-          <span class="exercise-row__text">
-            <span class="exercise-row__title"></span>
-            <span class="exercise-row__count"></span>
-          </span>
-        </button>
-        <!-- ▲ y ▼ apilados, para cambiar el orden rápido sin quitarle ancho al nombre -->
-        <div class="exercise-row__move">
-          <button class="exercise-row__up" type="button" aria-label="Subir ejercicio">
-            <svg class="icon"><use href="#icon-arrow-up"></use></svg>
-          </button>
-          <button class="exercise-row__down" type="button" aria-label="Bajar ejercicio">
-            <svg class="icon"><use href="#icon-arrow-up"></use></svg>
-          </button>
-        </div>
-        <button class="menu-btn exercise-row__menu" type="button" aria-label="Opciones del ejercicio">
-          <svg class="icon"><use href="#icon-more"></use></svg>
-        </button>
-      </div>
+    <li class="exercise-row">
+      <!-- Descanso entre ejercicios ("— ⏱ 2:00 —"). Va arriba de cada tarjeta menos la primera
+           (la oculta el CSS), así se mueve junto con el ejercicio. Tocarlo deja cambiarlo. -->
+      <button class="rest-separator rest-separator--editable" type="button">
+        <svg class="icon"><use href="#icon-timer"></use></svg>
+        <span class="rest-separator__time"></span>
+      </button>
 
-      <div class="exercise-row__body">
-        <div class="exercise-row__name-field">
-          <!-- maxlength 60: el nombre más largo del catálogo tiene 60 letras -->
-          <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
-                 maxlength="60" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
-                 list="exercise-catalog" autocomplete="off">
-          <button class="exercise-row__pick" type="button" aria-label="Elegir del directorio de ejercicios">🔍</button>
+      <div class="card">
+        <!-- Tocar la cabecera pliega o despliega las series; ⋮ abre el menú del ejercicio -->
+        <div class="exercise-row__header">
+          <button class="exercise-row__toggle" type="button" aria-expanded="true">
+            <svg class="icon exercise-row__chevron"><use href="#icon-chevron"></use></svg>
+            <span class="exercise-row__thumb"></span>
+            <span class="exercise-row__text">
+              <span class="exercise-row__title"></span>
+              <span class="exercise-row__count"></span>
+            </span>
+          </button>
+          <!-- ▲ y ▼ apilados, para cambiar el orden rápido sin quitarle ancho al nombre -->
+          <div class="exercise-row__move">
+            <button class="exercise-row__up" type="button" aria-label="Subir ejercicio">
+              <svg class="icon"><use href="#icon-arrow-up"></use></svg>
+            </button>
+            <button class="exercise-row__down" type="button" aria-label="Bajar ejercicio">
+              <svg class="icon"><use href="#icon-arrow-up"></use></svg>
+            </button>
+          </div>
+          <button class="menu-btn exercise-row__menu" type="button" aria-label="Opciones del ejercicio">
+            <svg class="icon"><use href="#icon-more"></use></svg>
+          </button>
         </div>
-        <ol class="set-fields"></ol>
-        <button class="exercise-row__add-set" type="button">+ Agregar una serie</button>
-        <label class="exercise-row__rest-field">
-          <span class="exercise-row__rest-label">Descanso entre series</span>
-          <input class="field__input exercise-row__rest" type="number" inputmode="numeric"
-                 min="5" max="600" value="90" required aria-label="Descanso entre series en segundos">
-          <span>s</span>
-        </label>
+
+        <div class="exercise-row__body">
+          <div class="exercise-row__name-field">
+            <!-- maxlength 60: el nombre más largo del catálogo tiene 60 letras -->
+            <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
+                   maxlength="60" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
+                   list="exercise-catalog" autocomplete="off">
+            <button class="exercise-row__pick" type="button" aria-label="Elegir del directorio de ejercicios">🔍</button>
+          </div>
+          <ol class="set-fields"></ol>
+          <button class="exercise-row__add-set" type="button">+ Agregar una serie</button>
+        </div>
       </div>
     </li>
   </template>
