@@ -324,13 +324,14 @@
   <!-- Pantalla del modo entrenar: los ejercicios como en el editor, con un check por serie -->
   <dialog class="session" id="workout-session" aria-labelledby="session-title">
     <header class="session__header">
-      <button class="btn-text" id="session-exit-btn" type="button">Salir</button>
+      <button class="btn-text" id="session-pause-btn" type="button">Pausa</button>
       <h2 class="session__title" id="session-title"></h2>
+      <button class="btn-pill session__finish" id="session-finish-btn" type="button">Terminar</button>
     </header>
 
     <div class="session__body" id="session-body">
       <section class="session__finished" id="session-finished" hidden>
-        <p class="session__finished-title">¡Entrenamiento completo!</p>
+        <p class="session__finished-title" id="session-finished-title"></p>
         <p class="session__finished-text" id="session-summary"></p>
       </section>
 
@@ -392,16 +393,71 @@
     </li>
   </template>
 
-  <!-- Al salir a mitad de un entrenamiento. Cada botón cierra la ventana con su "value" -->
-  <dialog class="sheet" id="exit-dialog" aria-labelledby="exit-title">
+  <!-- Menú de pausa del modo entrenar ("Pausa", "atrás" o Escape). Cada botón cierra la hoja con su "value" -->
+  <dialog class="sheet" id="pause-dialog" aria-labelledby="pause-title">
     <form class="sheet__form" method="dialog">
-      <h2 class="sheet__title" id="exit-title">¿Terminar el entrenamiento?</h2>
-      <p class="sheet__text" id="exit-text"></p>
-      <button class="btn btn--primary" value="save">Guardar y salir</button>
-      <button class="btn btn--danger" value="discard">Salir sin guardar</button>
-      <button class="btn btn--ghost" value="continue">Seguir entrenando</button>
+      <h2 class="sheet__title" id="pause-title">Pausa</h2>
+      <div class="sheet__menu">
+        <button class="menu-item" value="away">
+          Ausente por un tiempo
+          <span class="menu-item__hint">Guardar el progreso y seguir más tarde</span>
+        </button>
+        <button class="menu-item" value="restart">
+          Reiniciar
+          <span class="menu-item__hint">Empezar de nuevo con las series sin marcar</span>
+        </button>
+        <button class="menu-item menu-item--danger" value="exit">Salir</button>
+      </div>
+      <button class="btn btn--primary" value="">Continuar</button>
     </form>
   </dialog>
+
+  <!-- "Salir" del menú de pausa, con series hechas: guardar lo hecho o descartarlo -->
+  <dialog class="sheet" id="exit-dialog" aria-labelledby="exit-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="exit-title">Salir</h2>
+      <div class="sheet__menu">
+        <button class="menu-item" value="save">
+          Terminar y guardar
+          <span class="menu-item__hint">Lo hecho se guarda en el historial</span>
+        </button>
+        <button class="menu-item menu-item--danger" value="discard">
+          Descartar
+          <span class="menu-item__hint">Salir sin guardar este entrenamiento</span>
+        </button>
+      </div>
+      <button class="btn btn--primary" value="">Continuar</button>
+    </form>
+  </dialog>
+
+  <!-- "Terminar" (arriba a la derecha) con series sin hacer: cuántas quedaron completas e incompletas -->
+  <dialog class="sheet" id="finish-dialog" aria-labelledby="finish-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="finish-title">¿Terminaste?</h2>
+      <p class="sheet__text" id="finish-text"></p>
+      <div class="finish-stats">
+        <p class="finish-stats__item">
+          <span class="finish-stats__number" id="finish-done"></span>
+          <span class="finish-stats__label" id="finish-done-label"></span>
+        </p>
+        <p class="finish-stats__item">
+          <span class="finish-stats__number" id="finish-pending"></span>
+          <span class="finish-stats__label" id="finish-pending-label"></span>
+        </p>
+      </div>
+      <button class="btn btn--primary" value="finish">Terminar</button>
+      <button class="btn btn--ghost" value="">Seguir entrenando</button>
+    </form>
+  </dialog>
+
+  <!-- Barra "Continuar": se ve en todas las secciones mientras hay un entrenamiento en pausa -->
+  <button class="resume-bar" id="resume-bar" type="button" hidden>
+    <span class="resume-bar__text">
+      <span class="resume-bar__name" id="resume-bar-name"></span>
+      <span class="resume-bar__meta" id="resume-bar-meta"></span>
+    </span>
+    <span class="resume-bar__action">Continuar</span>
+  </button>
 
   <!-- Menú ⋮: hoja inferior con acciones; app.js arma los botones y cada uno la cierra con su "value" -->
   <dialog class="sheet" id="action-menu" aria-labelledby="action-menu-title">
