@@ -29,6 +29,12 @@
     <symbol id="icon-more" viewBox="0 0 24 24">
       <path d="M12 5h.01M12 12h.01M12 19h.01"/>
     </symbol>
+    <symbol id="icon-arrow-up" viewBox="0 0 24 24">
+      <path d="M12 19V5M6 11l6-6 6 6"/>
+    </symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24">
+      <path d="M6 9l6 6 6-6"/>
+    </symbol>
   </svg>
 
   <!-- Encabezado: logo al centro y perfil a la derecha -->
@@ -198,26 +204,48 @@
     </form>
   </dialog>
 
-  <!-- Molde de cada ejercicio; app.js lo copia cada vez que se agrega uno -->
+  <!-- Molde de cada ejercicio (una tarjeta plegable); app.js lo copia cada vez que se agrega uno -->
   <template id="exercise-row-template">
     <li class="exercise-row card">
-      <div class="exercise-row__top">
-        <!-- maxlength 60: el nombre más largo del catálogo tiene 60 letras -->
-        <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
-               maxlength="60" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
-               list="exercise-catalog" autocomplete="off">
-        <button class="exercise-row__pick" type="button" aria-label="Elegir del directorio de ejercicios">🔍</button>
-        <button class="exercise-row__move exercise-row__up" type="button" aria-label="Subir ejercicio">↑</button>
-        <button class="exercise-row__move exercise-row__down" type="button" aria-label="Bajar ejercicio">↓</button>
-        <button class="exercise-row__remove" type="button" aria-label="Quitar ejercicio">✕</button>
+      <!-- Tocar la cabecera pliega o despliega las series; ⋮ abre el menú del ejercicio -->
+      <div class="exercise-row__header">
+        <button class="exercise-row__toggle" type="button" aria-expanded="true">
+          <svg class="icon exercise-row__chevron"><use href="#icon-chevron"></use></svg>
+          <span class="exercise-row__thumb"></span>
+          <span class="exercise-row__text">
+            <span class="exercise-row__title"></span>
+            <span class="exercise-row__count"></span>
+          </span>
+        </button>
+        <!-- ▲ y ▼ apilados, para cambiar el orden rápido sin quitarle ancho al nombre -->
+        <div class="exercise-row__move">
+          <button class="exercise-row__up" type="button" aria-label="Subir ejercicio">
+            <svg class="icon"><use href="#icon-arrow-up"></use></svg>
+          </button>
+          <button class="exercise-row__down" type="button" aria-label="Bajar ejercicio">
+            <svg class="icon"><use href="#icon-arrow-up"></use></svg>
+          </button>
+        </div>
+        <button class="menu-btn exercise-row__menu" type="button" aria-label="Opciones del ejercicio">
+          <svg class="icon"><use href="#icon-more"></use></svg>
+        </button>
       </div>
-      <ol class="set-fields"></ol>
-      <div class="exercise-row__bottom">
-        <button class="btn-text exercise-row__add-set" type="button">+ Serie</button>
-        <label class="mini-field">
+
+      <div class="exercise-row__body">
+        <div class="exercise-row__name-field">
+          <!-- maxlength 60: el nombre más largo del catálogo tiene 60 letras -->
+          <input class="field__input exercise-row__name" type="text" placeholder="Ej: Sentadilla"
+                 maxlength="60" required pattern=".*\S.*" aria-label="Nombre del ejercicio"
+                 list="exercise-catalog" autocomplete="off">
+          <button class="exercise-row__pick" type="button" aria-label="Elegir del directorio de ejercicios">🔍</button>
+        </div>
+        <ol class="set-fields"></ol>
+        <button class="exercise-row__add-set" type="button">+ Agregar una serie</button>
+        <label class="exercise-row__rest-field">
+          <span class="exercise-row__rest-label">Descanso entre series</span>
           <input class="field__input exercise-row__rest" type="number" inputmode="numeric"
-                 min="5" max="600" value="90" required aria-label="Descanso en segundos">
-          <span>s desc.</span>
+                 min="5" max="600" value="90" required aria-label="Descanso entre series en segundos">
+          <span>s</span>
         </label>
       </div>
     </li>
@@ -248,19 +276,19 @@
     </footer>
   </dialog>
 
-  <!-- Molde de cada serie dentro de un ejercicio -->
+  <!-- Molde de cada serie dentro de un ejercicio: "1  [15] kg  [10] reps  ✕" (el peso va primero) -->
   <template id="set-row-template">
     <li class="set-row">
       <span class="set-row__label"></span>
-      <label class="mini-field">
-        <input class="field__input set-row__reps" type="number" inputmode="numeric"
-               min="1" max="100" value="10" required>
-        <span>reps</span>
-      </label>
-      <label class="mini-field">
+      <label class="set-field">
         <input class="field__input set-row__weight" type="number" inputmode="decimal"
                min="0" max="500" step="any" placeholder="–">
         <span>kg</span>
+      </label>
+      <label class="set-field">
+        <input class="field__input set-row__reps" type="number" inputmode="numeric"
+               min="1" max="100" value="10" required>
+        <span>reps</span>
       </label>
       <button class="set-row__remove" type="button" aria-label="Quitar serie">✕</button>
     </li>

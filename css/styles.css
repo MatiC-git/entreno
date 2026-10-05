@@ -435,7 +435,7 @@ body {
   outline-offset: -1px;
 }
 
-/* Cada ejercicio dentro del editor */
+/* Cada ejercicio del editor es una tarjeta plegable */
 .exercise-fields {
   list-style: none;
   padding: 0;
@@ -443,102 +443,146 @@ body {
 
 .exercise-row {
   margin-bottom: 12px;
-  padding: 12px;
 }
 
 .exercise-row .field__input {
   background: var(--bg);
 }
 
-.exercise-row__top {
+.exercise-row__header {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+}
+
+/* Toda la cabecera (menos ⋮) es el botón que pliega y despliega */
+.exercise-row__toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 8px 0 8px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.exercise-row__chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.exercise-row__toggle[aria-expanded="true"] .exercise-row__chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-row__chevron {
+    transition: none;
+  }
+}
+
+/* ▲ sobre ▼: una sola columna angosta, así el nombre conserva su ancho */
+.exercise-row__move {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.exercise-row__up,
+.exercise-row__down {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.exercise-row__up:active,
+.exercise-row__down:active {
+  background: var(--bg);
+}
+
+.exercise-row__up .icon,
+.exercise-row__down .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.exercise-row__down .icon {
+  transform: rotate(180deg);
+}
+
+/* En las puntas se ocultan pero siguen ocupando su lugar, así las cabeceras quedan alineadas */
+.exercise-row__up:disabled,
+.exercise-row__down:disabled {
+  visibility: hidden;
+}
+
+.exercise-row__thumb {
+  display: flex;
+}
+
+.exercise-row .exercise-thumb {
+  width: 48px;
+  height: 48px;
+}
+
+.exercise-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.exercise-row__title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Todavía sin nombre: "Ejercicio nuevo" en gris */
+.exercise-row__title--empty {
+  color: var(--text-muted);
+}
+
+.exercise-row__count {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.exercise-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.exercise-row__body[hidden] {
+  display: none;
+}
+
+/* El nombre ocupa todo el ancho; al lado, solo 🔍 */
+.exercise-row__name-field {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-/* Una fila por serie: "Serie 1  [10] reps  ✕" */
-.set-fields {
-  list-style: none;
-  padding: 0;
-  margin-top: 4px;
-}
-
-.set-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 52px;
-}
-
-.set-row__label {
-  width: 3.75rem;
-  flex-shrink: 0;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-}
-
-/* El ✕ queda siempre pegado a la derecha */
-.set-row__remove {
-  margin-left: auto;
-}
-
-.exercise-row__bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.exercise-row__add-set:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.mini-field {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-}
-
-.mini-field .field__input {
-  width: 3.25rem;
-  padding: 0 4px;
-  text-align: center;
-}
-
-.exercise-row__remove,
-.set-row__remove {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-
-/* ↑ y ↓ más angostos para dejarle lugar al nombre en pantallas chicas */
-.exercise-row__move {
-  flex-shrink: 0;
-  width: 32px;
-  height: 44px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-
-/* 🔍 abre el directorio de ejercicios; angosto como ↑ y ↓ */
+/* 🔍 abre el directorio de ejercicios */
 .exercise-row__pick {
   flex-shrink: 0;
-  width: 36px;
+  width: 44px;
   height: 44px;
   border: none;
   border-radius: 10px;
@@ -547,14 +591,103 @@ body {
   cursor: pointer;
 }
 
-.exercise-row__move:disabled {
-  visibility: hidden;
+.set-fields {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.exercise-row__remove:disabled,
+/* Una fila por serie: "1   [15] KG   [10] REPS   ✕" (el peso va antes que las reps) */
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 6px 12px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.set-row__label {
+  width: 1.25rem;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.set-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.set-row .field__input {
+  width: 3.5rem;
+  padding: 0 4px;
+  background: var(--surface);
+  font-weight: 700;
+  text-align: center;
+}
+
+.set-row__remove {
+  flex-shrink: 0;
+  width: 40px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
 .set-row__remove:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+.exercise-row__add-set {
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.exercise-row__add-set:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* "Descanso entre series  [90] s" */
+.exercise-row__rest-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.exercise-row__rest-label {
+  flex: 1;
+}
+
+.exercise-row__rest-field .field__input {
+  width: 4rem;
+  padding: 0 4px;
+  text-align: center;
 }
 
 /* Vista previa: pantalla completa (comparte la base con el modo entrenar, más abajo)
