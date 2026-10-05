@@ -130,6 +130,38 @@
     </button>
   </nav>
 
+  <!-- Vista previa: se abre al tocar una tarjeta. Muestra los ejercicios (sin pesos) y deja empezar o editar -->
+  <dialog class="preview" id="workout-preview" aria-labelledby="preview-title">
+    <header class="preview__header">
+      <button class="btn-text" id="preview-back-btn" type="button">‹ Volver</button>
+      <button class="menu-btn" id="preview-menu-btn" type="button" aria-label="Opciones del entrenamiento">
+        <svg class="icon"><use href="#icon-more"></use></svg>
+      </button>
+    </header>
+
+    <div class="preview__body">
+      <h2 class="preview__title" id="preview-title"></h2>
+      <p class="preview__summary" id="preview-summary"></p>
+      <ul class="preview-list card" id="preview-list"></ul>
+    </div>
+
+    <footer class="preview__footer">
+      <button class="btn btn--primary" id="preview-start-btn" type="button">Comenzar</button>
+      <button class="btn btn--ghost" id="preview-edit-btn" type="button">Editar</button>
+    </footer>
+  </dialog>
+
+  <!-- Renombrar un entrenamiento desde el menú ⋮ de la vista previa -->
+  <dialog class="sheet" id="rename-dialog" aria-labelledby="rename-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="rename-title">Renombrar</h2>
+      <input class="field__input sheet__input" id="rename-input" type="text" maxlength="40"
+             required pattern=".*\S.*" aria-label="Nombre del entrenamiento">
+      <button class="btn btn--primary" value="save">Guardar</button>
+      <button class="btn btn--ghost" value="" formnovalidate>Cancelar</button>
+    </form>
+  </dialog>
+
   <!-- Pantalla para crear o editar un entrenamiento -->
   <dialog class="editor" id="workout-editor" aria-labelledby="editor-title">
     <form class="editor__form" id="workout-form">

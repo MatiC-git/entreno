@@ -243,64 +243,40 @@ body {
   padding: 0;
 }
 
+/* Toda la tarjeta es un botón que abre la vista previa */
 .workout-card {
-  margin-bottom: 12px;
-  padding-bottom: var(--gutter);
-}
-
-/* Arriba: nombre y resumen (abre el editor) + menú ⋮ */
-.workout-card__head {
-  display: flex;
-  align-items: flex-start;
-  padding-right: 8px;
-}
-
-.workout-card__head .menu-btn {
-  margin-top: 8px;
-}
-
-.workout-card__open {
   display: block;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  margin-bottom: 12px;
   padding: var(--gutter);
   border: none;
-  background: none;
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.workout-card__open:active {
-  opacity: 0.6;
+.workout-card:active {
+  transform: scale(0.98);
 }
 
 .workout-card__title {
+  display: block;
+  margin-bottom: 4px;
   font-size: 1.0625rem;
   font-weight: 700;
 }
 
-.workout-card__summary {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-
 .workout-card__exercises {
-  list-style: none;
-  padding: 0 var(--gutter);
-  border-top: 1px solid var(--border);
+  display: block;
 }
 
+/* "Sentadilla ........ 3×10" */
 .exercise-line {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 56px;
-}
-
-.exercise-line + .exercise-line {
-  border-top: 1px solid var(--border);
+  min-height: 32px;
 }
 
 .exercise-line__name {
@@ -317,30 +293,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.rest-btn {
-  min-height: 40px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
+/* "Ver todos (2 más)": la tarjeta entera ya lleva a la vista previa, esto solo lo avisa */
+.workout-card__more {
+  display: block;
+  margin-top: 4px;
+  color: var(--accent);
   font-size: 0.875rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.rest-btn:active {
-  background: var(--accent);
-  color: var(--accent-text);
-}
-
-/* Más específico que .btn para que no le gane su width: 100% */
-.workout-card .workout-card__start {
-  display: block;
-  width: calc(100% - 2 * var(--gutter));
-  margin: 4px var(--gutter) 0;
 }
 
 .btn {
@@ -598,9 +557,83 @@ body {
   cursor: default;
 }
 
+/* Vista previa: pantalla completa (comparte la base con el modo entrenar, más abajo)
+   con la lista de ejercicios y Comenzar / Editar abajo */
+.preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px var(--gutter);
+}
+
+.preview__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--gutter) var(--gutter);
+}
+
+.preview__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.preview__summary {
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.preview-list {
+  list-style: none;
+  padding: 0 var(--gutter);
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 8px 0;
+}
+
+.preview-item + .preview-item {
+  border-top: 1px solid var(--border);
+}
+
+.preview-item__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-item__name {
+  display: block;
+  font-weight: 600;
+}
+
+.preview-item__detail {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.preview__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--gutter);
+  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+}
+
+/* Hoja de renombrar: espacio entre el campo y los botones */
+.sheet__input {
+  margin: 8px 0;
+  background: var(--bg);
+}
+
 /* Modo entrenar: pantalla completa con la serie actual en grande */
 .session,
-.picker {
+.picker,
+.preview {
   width: 100%;
   max-width: 480px;
   height: 100dvh;
@@ -613,13 +646,15 @@ body {
 }
 
 .session[open],
-.picker[open] {
+.picker[open],
+.preview[open] {
   display: flex;
   flex-direction: column;
 }
 
 .session::backdrop,
-.picker::backdrop {
+.picker::backdrop,
+.preview::backdrop {
   background: rgb(0 0 0 / 0.5);
 }
 
@@ -1047,14 +1082,23 @@ button.picker-item:active {
   opacity: 0.6;
 }
 
-/* Fondo blanco como en el modo entrenar: las imágenes de wger lo tienen */
-.picker-item__image {
+/* Imagen chica de un ejercicio (directorio y vista previa).
+   Fondo blanco como en el modo entrenar: las imágenes de wger lo tienen. */
+.exercise-thumb {
   flex-shrink: 0;
   width: 56px;
   height: 56px;
   border-radius: 10px;
   background: #ffffff;
   object-fit: contain;
+}
+
+/* Ejercicio fuera del catálogo: recuadro con un ícono en vez de foto */
+.exercise-thumb--empty {
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text-muted);
 }
 
 .picker-item__name {

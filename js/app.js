@@ -22,6 +22,7 @@ const cancelBtn = document.getElementById("cancel-btn");
 const deleteWorkoutBtn = document.getElementById("delete-workout-btn");
 const duplicateWorkoutBtn = document.getElementById("duplicate-workout-btn");
 const editorTitle = document.getElementById("editor-title");
+const editorBody = editor.querySelector(".editor__body");
 const exerciseRowTemplate = document.getElementById("exercise-row-template");
 const setRowTemplate = document.getElementById("set-row-template");
 const sessionDialog = document.getElementById("workout-session");
@@ -56,6 +57,16 @@ const directoryList = document.getElementById("directory-list");
 const actionMenu = document.getElementById("action-menu");
 const actionMenuTitle = document.getElementById("action-menu-title");
 const actionMenuItems = document.getElementById("action-menu-items");
+const preview = document.getElementById("workout-preview");
+const previewBackBtn = document.getElementById("preview-back-btn");
+const previewMenuBtn = document.getElementById("preview-menu-btn");
+const previewTitle = document.getElementById("preview-title");
+const previewSummary = document.getElementById("preview-summary");
+const previewList = document.getElementById("preview-list");
+const previewStartBtn = document.getElementById("preview-start-btn");
+const previewEditBtn = document.getElementById("preview-edit-btn");
+const renameDialog = document.getElementById("rename-dialog");
+const renameInput = document.getElementById("rename-input");
 const historyEmpty = document.getElementById("history-empty");
 const historyList = document.getElementById("history-list");
 const exportBtn = document.getElementById("export-btn");
@@ -140,46 +151,32 @@ function plural(count, singular, pluralWord) {
   return `${count} ${count === 1 ? singular : pluralWord}`;
 }
 
+// Cuántos ejercicios se ven en cada tarjeta; el resto, en la vista previa
+const CARD_EXERCISES = 3;
+
 function renderWorkouts() {
   workoutList.replaceChildren();
   emptyState.hidden = workouts.length > 0;
 
   for (const workout of workouts) {
-    const card = document.createElement("li");
+    const item = document.createElement("li");
+
+    // Toda la tarjeta es un botón que abre la vista previa.
+    // Adentro de un botón no puede ir una lista (<ul>), por eso todo son <span>.
+    const card = document.createElement("button");
+    card.type = "button";
     card.className = "workout-card card";
+    card.addEventListener("click", () => openPreview(workout));
 
-    // La parte de arriba es un botón: al tocarla se abre el editor con sus datos
-    const openBtn = document.createElement("button");
-    openBtn.type = "button";
-    openBtn.className = "workout-card__open";
-    openBtn.addEventListener("click", () => openEditor(workout));
-
-    const title = document.createElement("h2");
+    const title = document.createElement("span");
     title.className = "workout-card__title";
     title.textContent = workout.name;
 
-    const summary = document.createElement("p");
-    summary.className = "workout-card__summary";
-    summary.textContent = describeWorkout(workout);
-
-    openBtn.append(title, summary);
-
-    const head = document.createElement("div");
-    head.className = "workout-card__head";
-    head.append(openBtn, createMenuButton(workout.name, [
-      { label: "Editar", action: () => openEditor(workout) },
-      { label: "Duplicar", action: () => duplicateWorkout(workout) },
-      { label: "Borrar", danger: true, action: () => deleteWorkout(workout) },
-    ]));
-
-    // Lista de ejercicios, cada uno con su botón de descanso
-    const exerciseList = document.createElement("ul");
+    const exerciseList = document.createElement("span");
     exerciseList.className = "workout-card__exercises";
 
-    for (const exercise of workout.exercises) {
-      const rest = exercise.rest ?? DEFAULT_REST;
-
-      const line = document.createElement("li");
+    for (const exercise of workout.exercises.slice(0, CARD_EXERCISES)) {
+      const line = document.createElement("span");
       line.className = "exercise-line";
 
       const name = document.createElement("span");
@@ -188,42 +185,44 @@ function renderWorkouts() {
 
       const detail = document.createElement("span");
       detail.className = "exercise-line__detail";
-      detail.textContent = describeSets(exercise.sets);
+      detail.textContent = describeSetsShort(exercise.sets);
 
-      const restBtn = document.createElement("button");
-      restBtn.type = "button";
-      restBtn.className = "rest-btn";
-      restBtn.textContent = `⏱ ${formatTime(rest)}`;
-      restBtn.setAttribute("aria-label", `Descanso de ${exercise.name}: ${formatTime(rest)}`);
-      restBtn.addEventListener("click", () => startRestTimer(exercise.name, rest));
-
-      line.append(name, detail, restBtn);
+      line.append(name, detail);
       exerciseList.append(line);
     }
 
-    const startBtn = document.createElement("button");
-    startBtn.type = "button";
-    startBtn.className = "btn btn--primary workout-card__start";
-    startBtn.textContent = "Empezar";
-    startBtn.addEventListener("click", () => startSession(workout));
+    card.append(title, exerciseList);
 
-    card.append(head, exerciseList, startBtn);
-    workoutList.append(card);
+    const hidden = workout.exercises.length - CARD_EXERCISES;
+    if (hidden > 0) {
+      const more = document.createElement("span");
+      more.className = "workout-card__more";
+      more.textContent = `Ver todos (${plural(hidden, "más", "más")})`;
+      card.append(more);
+    }
+
+    item.append(card);
+    workoutList.append(item);
   }
+
+  // Si la vista previa está abierta (ej: se editó desde ahí), que muestre los datos nuevos
+  if (preview.open) renderPreview();
 }
 
-// Reps iguales: "3×10". Distintas: "12/10/8". Si hay peso, se suma: "3×10 · 40 kg" o "· 40–50 kg"
-function describeSets(sets) {
-  const reps = sets.map((set) => set.reps);
-  const repsText = reps.every((value) => value === reps[0]) ? `${sets.length}×${reps[0]}` : reps.join("/");
+function hasSameReps(sets) {
+  return sets.every((set) => set.reps === sets[0].reps);
+}
 
-  const weights = sets.map((set) => set.weight).filter((weight) => weight != null);
-  if (weights.length === 0) return repsText;
+// Para la tarjeta: "3×10" si todas las series tienen las mismas reps; si no, "3 series"
+function describeSetsShort(sets) {
+  return hasSameReps(sets) ? `${sets.length}×${sets[0].reps}` : plural(sets.length, "serie", "series");
+}
 
-  const min = Math.min(...weights);
-  const max = Math.max(...weights);
-  const weightText = min === max ? formatWeight(min) : `${formatWeight(min)}–${formatWeight(max)}`;
-  return `${repsText} · ${weightText} kg`;
+// Para la vista previa: "3 series × 10 reps", o "3 series · 12/10/8 reps" si varían
+function describeSetsLong(sets) {
+  const count = plural(sets.length, "serie", "series");
+  if (hasSameReps(sets)) return `${count} × ${plural(sets[0].reps, "rep", "reps")}`;
+  return `${count} · ${sets.map((set) => set.reps).join("/")} reps`;
 }
 
 // 22.5 → "22,5"
@@ -367,6 +366,10 @@ function openEditor(workout = null, { asCopy = false } = {}) {
   deleteWorkoutBtn.hidden = !isEditing;
   duplicateWorkoutBtn.hidden = !isEditing;
   if (!editor.open) editor.showModal();
+
+  // El <dialog> recuerda dónde quedó el scroll la vez anterior: siempre arrancar arriba.
+  // Va después de showModal porque con la ventana cerrada no se puede mover el scroll.
+  editorBody.scrollTop = 0;
 }
 
 // "Piernas" → "Piernas (copia)", recortando el nombre para no pasar el máximo del campo
@@ -443,6 +446,126 @@ duplicateWorkoutBtn.addEventListener("click", () => {
 deleteWorkoutBtn.addEventListener("click", () => {
   const workout = workouts.find((item) => item.id === editingId);
   if (workout && deleteWorkout(workout)) editor.close();
+});
+
+// --- Vista previa de un entrenamiento ---
+
+// id del entrenamiento que muestra la vista previa. Se guarda el id (y no el entrenamiento)
+// porque al editarlo se reemplaza por otro objeto en la lista.
+let previewId = null;
+
+function previewWorkout() {
+  return workouts.find((workout) => workout.id === previewId);
+}
+
+function openPreview(workout) {
+  previewId = workout.id;
+  renderPreview();
+  preview.showModal();
+  preview.querySelector(".preview__body").scrollTop = 0;
+}
+
+// Si el entrenamiento ya no existe (se borró), cierra la vista previa
+function renderPreview() {
+  const workout = previewWorkout();
+  if (!workout) {
+    preview.close();
+    return;
+  }
+
+  previewTitle.textContent = workout.name;
+  previewSummary.textContent = describeWorkout(workout);
+  previewList.replaceChildren(...workout.exercises.map(renderPreviewItem));
+}
+
+// Una fila por ejercicio: imagen, nombre y "3 series × 10 reps" (los pesos no se muestran acá)
+function renderPreviewItem(exercise) {
+  const item = document.createElement("li");
+  item.className = "preview-item";
+
+  const text = document.createElement("span");
+  text.className = "preview-item__text";
+
+  const name = document.createElement("span");
+  name.className = "preview-item__name";
+  name.textContent = exercise.name;
+
+  const detail = document.createElement("span");
+  detail.className = "preview-item__detail";
+  detail.textContent = describeSetsLong(exercise.sets);
+
+  text.append(name, detail);
+  item.append(createExerciseThumb(exercise.name), text);
+  return item;
+}
+
+// Imagen del catálogo; si el ejercicio no está (o la imagen no carga), un recuadro con un ícono
+function createExerciseThumb(name) {
+  const placeholder = document.createElement("span");
+  placeholder.className = "exercise-thumb exercise-thumb--empty";
+  placeholder.innerHTML = '<svg class="icon"><use href="#icon-workouts"></use></svg>';
+
+  const entry = exerciseCatalog.get(normalizeName(name));
+  if (!entry) return placeholder;
+
+  const image = document.createElement("img");
+  image.className = "exercise-thumb";
+  image.src = entry.image;
+  image.alt = "";
+  image.width = 56;
+  image.height = 56;
+  image.addEventListener("error", () => image.replaceWith(placeholder));
+  return image;
+}
+
+previewBackBtn.addEventListener("click", () => preview.close());
+
+// Se cierra la vista previa antes de empezar: al terminar se vuelve a la lista
+previewStartBtn.addEventListener("click", () => {
+  const workout = previewWorkout();
+  preview.close();
+  startSession(workout);
+});
+
+// El editor se abre encima; al guardar, renderWorkouts actualiza la vista previa
+previewEditBtn.addEventListener("click", () => openEditor(previewWorkout()));
+
+previewMenuBtn.addEventListener("click", () => {
+  const workout = previewWorkout();
+  openActionMenu(workout.name, [
+    { label: "Renombrar", action: () => openRename(workout) },
+    {
+      label: "Duplicar",
+      action: () => {
+        preview.close();
+        duplicateWorkout(workout);
+      },
+    },
+    { label: "Borrar", danger: true, action: () => deleteWorkout(workout) },
+  ]);
+});
+
+preview.addEventListener("close", () => {
+  previewId = null;
+});
+
+// --- Renombrar ---
+
+function openRename(workout) {
+  renameInput.value = workout.name;
+  renameDialog.returnValue = "";
+  renameDialog.showModal();
+  renameInput.select();
+}
+
+// "save" = Guardar o Enter; vacío = Cancelar, Escape o "atrás"
+renameDialog.addEventListener("close", () => {
+  if (renameDialog.returnValue !== "save") return;
+
+  const name = renameInput.value.trim();
+  workouts = workouts.map((workout) => (workout.id === previewId ? { ...workout, name } : workout));
+  saveWorkouts();
+  renderWorkouts();
 });
 
 // --- Timer de descanso ---
@@ -1049,7 +1172,7 @@ function renderExerciseItem(entry, onPick) {
 
   // loading="lazy": solo se descargan las imágenes que llegan a verse al bajar
   const image = document.createElement("img");
-  image.className = "picker-item__image";
+  image.className = "exercise-thumb";
   image.src = entry.image;
   image.alt = "";
   image.loading = "lazy";
@@ -1098,17 +1221,7 @@ directorySearch.addEventListener("input", renderDirectory);
 // Acciones del menú abierto; el "value" de cada botón es su posición en esta lista
 let menuItems = [];
 
-// items: [{ label, action, danger }]. Devuelve el botón ⋮ que abre el menú.
-function createMenuButton(title, items) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "menu-btn";
-  button.setAttribute("aria-label", `Opciones de ${title}`);
-  button.innerHTML = '<svg class="icon"><use href="#icon-more"></use></svg>';
-  button.addEventListener("click", () => openActionMenu(title, items));
-  return button;
-}
-
+// items: [{ label, action, danger }]
 function openActionMenu(title, items) {
   menuItems = items;
   actionMenuTitle.textContent = title;
@@ -1132,6 +1245,16 @@ actionMenu.addEventListener("close", () => {
   if (value !== "") menuItems[Number(value)]?.action();
   menuItems = [];
 });
+
+// --- Hojas inferiores: tocar el fondo oscuro las cierra ---
+
+// Un toque en el fondo le llega al <dialog> mismo; uno en el contenido, a lo que está adentro.
+// Se cierra sin "value", igual que con Cancelar: cada hoja lo trata como "no hacer nada".
+for (const sheet of document.querySelectorAll(".sheet")) {
+  sheet.addEventListener("click", (event) => {
+    if (event.target === sheet) sheet.close();
+  });
+}
 
 // --- Secciones (barra inferior) ---
 
