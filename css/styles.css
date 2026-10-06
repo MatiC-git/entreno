@@ -1156,12 +1156,149 @@ body {
   color: var(--text-muted);
 }
 
-/* Informe: por ahora, el historial. Calendario del mes y, abajo, las sesiones agrupadas por semana */
+/* Sin sesiones todavía (en el informe y en el historial) */
 .history__empty {
   margin: 10vh 0;
   text-align: center;
   color: var(--text-muted);
 }
+
+/* Informe: un título por bloque ("Total", "Esta semana"…) */
+.report__heading {
+  margin: 24px 0 8px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+#report-content > .report__heading:first-child {
+  margin-top: 0;
+}
+
+/* "Historial ........ Ver todos ›" */
+.report__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0 8px;
+}
+
+.report__heading-row .report__heading {
+  margin: 0;
+}
+
+/* Datos en columnas, separados por una línea: "Entrenamientos 24 | Tiempo 14 h 20 min" */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 12px 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--gutter);
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--border);
+}
+
+.stat__label {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.stat__value {
+  color: var(--accent);
+  font-size: 1.375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Entrenamientos por semana: barras redondeadas; la de esta semana, naranja entera */
+.week-chart {
+  padding: 16px 8px 12px;
+}
+
+.week-chart__weeks {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  list-style: none;
+  padding: 0;
+}
+
+.week-chart__week {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* El número de arriba y la barra; 20px quedan para el número */
+.week-chart__column {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 146px;
+}
+
+.week-chart__value {
+  min-height: 20px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El alto llega a 126px con 7 entrenamientos (uno por día): --days lo pone app.js.
+   Sin entrenamientos queda una rayita, para que se vea que la semana está */
+.week-chart__bar {
+  width: 16px;
+  height: calc(var(--days) * 126px / 7);
+  min-height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 40%, var(--surface));
+}
+
+.week-chart__week--current .week-chart__bar {
+  background: var(--accent);
+}
+
+.week-chart__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+
+.week-chart__label span:first-child {
+  font-weight: 700;
+}
+
+.week-chart__week--current .week-chart__label {
+  color: var(--text);
+}
+
+/* Esta semana: los días como en el calendario y, abajo, minutos de hoy y media semanal */
+.this-week {
+  padding: 12px 12px 0;
+}
+
+.this-week__stats {
+  margin: 12px -12px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Historial completo: "‹ Volver" a la izquierda del título */
+.view__header--back {
+  justify-content: flex-start;
+}
+
+/* Calendario del mes y, abajo, las sesiones agrupadas por semana */
 
 .calendar {
   margin-bottom: 24px;
