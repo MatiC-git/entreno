@@ -87,7 +87,19 @@ const restText = document.getElementById("rest-text");
 const restMinutesInput = document.getElementById("rest-minutes");
 const restSecondsInput = document.getElementById("rest-seconds");
 const historyEmpty = document.getElementById("history-empty");
-const historyList = document.getElementById("history-list");
+const historyWeeks = document.getElementById("history-weeks");
+const calendar = document.getElementById("calendar");
+const calendarTitle = document.getElementById("calendar-title");
+const calendarGrid = document.getElementById("calendar-grid");
+const calendarPrevBtn = document.getElementById("calendar-prev");
+const calendarNextBtn = document.getElementById("calendar-next");
+const historyDetail = document.getElementById("history-detail");
+const historyDetailBackBtn = document.getElementById("history-detail-back-btn");
+const historyDetailTitle = document.getElementById("history-detail-title");
+const historyDetailDate = document.getElementById("history-detail-date");
+const historyDetailSummary = document.getElementById("history-detail-summary");
+const historyDetailList = document.getElementById("history-detail-list");
+const historyRepeatBtn = document.getElementById("history-repeat-btn");
 const exportBtn = document.getElementById("export-btn");
 const importBtn = document.getElementById("import-btn");
 const importInput = document.getElementById("import-input");
@@ -1442,14 +1454,29 @@ function confirmReplaceSession() {
 
 // --- Historial ---
 
-const historyDateFormat = new Intl.DateTimeFormat("es-AR", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
+// Tarjetas: "jue, 2 oct · 19:42". Detalle: "Jueves, 2 de octubre de 2026 · 19:42"
+const historyDayFormat = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short" });
+const historyTimeFormat = new Intl.DateTimeFormat("es-AR", {
   hour: "2-digit",
   minute: "2-digit",
   hourCycle: "h23", // "21:33" en vez de "09:33 p. m."
 });
+const historyLongDateFormat = new Intl.DateTimeFormat("es-AR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+// Semanas: "28 sept – 4 oct" (con el año si no es el actual). Calendario: "Octubre de 2026" y "2 de octubre"
+const weekDayFormat = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" });
+const weekDayYearFormat = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric" });
+const calendarMonthFormat = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" });
+const calendarDayFormat = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long" });
+
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 // En milisegundos: 42 min → "42 min", 75 min → "1 h 15 min"
 function formatMinutes(ms) {
@@ -1463,69 +1490,304 @@ function formatDuration(entry) {
   return formatMinutes(entry.durationMs ?? new Date(entry.finishedAt) - new Date(entry.startedAt));
 }
 
-// Una serie del historial: "10 × 40 kg", o "10 reps" si no tenía peso
+// Una serie del historial: "40 kg × 10" (peso antes que reps, como en el editor), o "10 reps" si no tenía peso
 function describeDoneSet(set) {
-  return set.weight == null ? `${set.reps} reps` : `${set.reps} × ${formatWeight(set.weight)} kg`;
+  return set.weight == null ? plural(set.reps, "rep", "reps") : `${formatWeight(set.weight)} kg × ${set.reps}`;
+}
+
+function countEntrySets(entry) {
+  return entry.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+}
+
+// Lunes de la semana de una fecha, a las 0:00 (las semanas van de lunes a domingo)
+function startOfWeek(date) {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // getDay: 0 = domingo
+  return monday;
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+// Mes que muestra el calendario (su día 1); arranca en el actual
+let calendarMonth = startOfMonth(new Date());
+
+// De la más nueva a la más vieja (un backup importado podría venir en otro orden)
+function sortedHistory() {
+  return [...historyEntries].sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
 }
 
 function renderHistory() {
-  historyEmpty.hidden = historyEntries.length > 0;
-  historyList.replaceChildren(...historyEntries.map(renderHistoryEntry));
+  const hasHistory = historyEntries.length > 0;
+  historyEmpty.hidden = hasHistory;
+  calendar.hidden = !hasHistory;
+  renderCalendar();
+  renderHistoryWeeks();
 }
 
-// Cada sesión es un <details>: al tocar el resumen se despliega el detalle por ejercicio
-function renderHistoryEntry(entry) {
-  const doneSets = entry.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+// --- Calendario ---
+
+function renderCalendar() {
+  calendarTitle.textContent = capitalize(calendarMonthFormat.format(calendarMonth));
+
+  // Sesiones por día: "2026-10-02" → [sesiones de ese día]
+  const byDay = new Map();
+  for (const entry of historyEntries) {
+    const key = localDateStamp(new Date(entry.startedAt));
+    byDay.set(key, [...(byDay.get(key) ?? []), entry]);
+  }
+
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const today = localDateStamp();
+
+  // Huecos antes del día 1, para que caiga bajo su día de la semana (la primera columna es el lunes)
+  const blanks = (calendarMonth.getDay() + 6) % 7;
+  const cells = Array.from({ length: blanks }, () => document.createElement("span"));
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const key = localDateStamp(date);
+    const entries = byDay.get(key);
+
+    // Solo los días entrenados son botones: al tocarlos se baja a su semana
+    const cell = document.createElement(entries ? "button" : "span");
+    cell.className = "calendar__day";
+    cell.textContent = day;
+    if (key === today) {
+      cell.classList.add("calendar__day--today");
+      cell.setAttribute("aria-current", "date");
+    }
+    if (key > today) cell.classList.add("calendar__day--future");
+    if (entries) {
+      cell.type = "button";
+      cell.classList.add("calendar__day--trained");
+      cell.setAttribute(
+        "aria-label",
+        `${calendarDayFormat.format(date)}: ${entries.map((entry) => entry.workoutName).join(", ")}`
+      );
+      cell.addEventListener("click", () => scrollToWeek(date));
+    }
+    cells.push(cell);
+  }
+  calendarGrid.replaceChildren(...cells);
+
+  // No se puede ir más atrás del mes de la primera sesión ni más adelante del actual
+  const oldest = historyEntries.reduce(
+    (min, entry) => Math.min(min, new Date(entry.startedAt).getTime()),
+    Date.now()
+  );
+  calendarPrevBtn.disabled = calendarMonth <= startOfMonth(new Date(oldest));
+  calendarNextBtn.disabled = calendarMonth >= startOfMonth(new Date());
+}
+
+function moveCalendar(months) {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + months, 1);
+  renderCalendar();
+}
+
+calendarPrevBtn.addEventListener("click", () => moveCalendar(-1));
+calendarNextBtn.addEventListener("click", () => moveCalendar(1));
+
+function scrollToWeek(date) {
+  const week = historyWeeks.querySelector(`[data-week="${localDateStamp(startOfWeek(date))}"]`);
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  week?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+  flashDay(date);
+}
+
+// Resalta un momento las tarjetas de ese día, para que se vea cuáles son dentro de la semana
+function flashDay(date) {
+  for (const card of historyWeeks.querySelectorAll(`[data-day="${localDateStamp(date)}"]`)) {
+    // Sacar y volver a poner la clase reinicia la animación si se toca el mismo día dos veces
+    card.classList.remove("history-card--flash");
+    void card.offsetWidth;
+    card.classList.add("history-card--flash");
+    card.addEventListener("animationend", () => card.classList.remove("history-card--flash"), { once: true });
+  }
+}
+
+// --- Lista por semana ---
+
+function renderHistoryWeeks() {
+  // "2026-09-28" (el lunes) → { monday, entries }; el Map respeta el orden: la semana más nueva primero
+  const weeks = new Map();
+  for (const entry of sortedHistory()) {
+    const monday = startOfWeek(new Date(entry.startedAt));
+    const key = localDateStamp(monday);
+    if (!weeks.has(key)) weeks.set(key, { monday, entries: [] });
+    weeks.get(key).entries.push(entry);
+  }
+  historyWeeks.replaceChildren(...[...weeks].map(([key, week]) => renderHistoryWeek(key, week)));
+}
+
+function renderHistoryWeek(key, { monday, entries }) {
+  const section = document.createElement("section");
+  section.className = "history-week";
+  section.dataset.week = key;
+
+  const header = document.createElement("div");
+  header.className = "history-week__header";
+
+  const title = document.createElement("h4");
+  title.className = "history-week__title";
+  title.textContent = describeWeek(monday);
+
+  const count = document.createElement("span");
+  count.className = "history-week__count";
+  count.textContent = plural(entries.length, "entrenamiento", "entrenamientos");
+
+  const list = document.createElement("ul");
+  list.className = "history-list";
+  list.append(...entries.map(renderHistoryCard));
+
+  header.append(title, count);
+  section.append(header, list);
+  return section;
+}
+
+// "28 sept – 4 oct", o "21 – 27 sept" si es todo el mismo mes; si es de otro año, "29 dic – 4 ene 2026"
+function describeWeek(monday) {
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const endFormat = sunday.getFullYear() === new Date().getFullYear() ? weekDayFormat : weekDayYearFormat;
+  const start = monday.getMonth() === sunday.getMonth() ? monday.getDate() : weekDayFormat.format(monday);
+  return `${start} – ${endFormat.format(sunday)}`;
+}
+
+// Toda la tarjeta es un botón que abre el detalle. Como en las de entrenamientos, adentro todo son <span>.
+function renderHistoryCard(entry) {
+  const startedAt = new Date(entry.startedAt);
+  const doneSets = countEntrySets(entry);
 
   const item = document.createElement("li");
-  item.className = "history-entry card";
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "history-card card";
+  card.dataset.day = localDateStamp(startedAt);
+  card.addEventListener("click", () => openHistoryDetail(entry));
 
-  const details = document.createElement("details");
-  const summary = document.createElement("summary");
-  summary.className = "history-entry__summary";
+  const top = document.createElement("span");
+  top.className = "history-card__top";
 
   const title = document.createElement("span");
-  title.className = "history-entry__title";
+  title.className = "history-card__title";
   title.textContent = entry.workoutName;
+  top.append(title);
 
-  const meta = document.createElement("span");
-  meta.className = "history-entry__meta";
-  meta.textContent = [
-    historyDateFormat.format(new Date(entry.finishedAt)),
+  if (!entry.completed) {
+    const badge = document.createElement("span");
+    badge.className = "history-card__badge";
+    badge.textContent = "Incompleto";
+    top.append(badge);
+  }
+  top.insertAdjacentHTML("beforeend", '<svg class="icon history-card__chevron"><use href="#icon-chevron"></use></svg>');
+
+  const date = document.createElement("span");
+  date.className = "history-card__meta";
+  date.textContent = `${historyDayFormat.format(startedAt)} · ${historyTimeFormat.format(startedAt)}`;
+
+  const stats = document.createElement("span");
+  stats.className = "history-card__meta";
+  stats.textContent = [
     formatDuration(entry),
     entry.completed ? plural(doneSets, "serie", "series") : `${doneSets}/${entry.plannedSets} series`,
   ].join(" · ");
 
-  summary.append(title);
-  if (!entry.completed) {
-    const badge = document.createElement("span");
-    badge.className = "history-entry__badge";
-    badge.textContent = "Incompleto";
-    summary.append(badge);
-  }
-  summary.append(meta);
-
-  const exerciseList = document.createElement("ul");
-  exerciseList.className = "history-entry__exercises";
-  for (const exercise of entry.exercises) {
-    const line = document.createElement("li");
-
-    const name = document.createElement("span");
-    name.className = "history-entry__exercise";
-    name.textContent = exercise.name;
-
-    const sets = document.createElement("span");
-    sets.className = "history-entry__sets";
-    sets.textContent = exercise.sets.map(describeDoneSet).join(" · ");
-
-    line.append(name, sets);
-    exerciseList.append(line);
-  }
-
-  details.append(summary, exerciseList);
-  item.append(details);
+  card.append(top, date, stats);
+  item.append(card);
   return item;
 }
+
+// --- Detalle de una sesión ---
+
+// Sesión que muestra el detalle; null si está cerrado
+let detailEntry = null;
+
+function openHistoryDetail(entry) {
+  detailEntry = entry;
+  const startedAt = new Date(entry.startedAt);
+  const doneSets = countEntrySets(entry);
+
+  historyDetailTitle.textContent = entry.workoutName;
+  historyDetailDate.textContent =
+    `${capitalize(historyLongDateFormat.format(startedAt))} · ${historyTimeFormat.format(startedAt)}`;
+  historyDetailSummary.textContent = [
+    formatDuration(entry),
+    entry.completed ? plural(doneSets, "serie", "series") : `${doneSets} de ${entry.plannedSets} series`,
+    !entry.completed && "Incompleto",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  historyDetailList.replaceChildren(...entry.exercises.map(renderHistoryExercise));
+
+  historyDetail.showModal();
+  historyDetail.querySelector(".preview__body").scrollTop = 0;
+}
+
+// Una tarjeta por ejercicio: imagen, nombre y las series numeradas ("① 30 kg × 8")
+function renderHistoryExercise(exercise) {
+  const item = document.createElement("li");
+  item.className = "history-exercise card";
+
+  const header = document.createElement("div");
+  header.className = "history-exercise__header";
+
+  const name = document.createElement("span");
+  name.className = "history-exercise__name";
+  name.textContent = exercise.name;
+  header.append(createExerciseThumb(exercise.name), name);
+
+  const sets = document.createElement("ol");
+  sets.className = "history-sets";
+  exercise.sets.forEach((set, index) => {
+    const line = document.createElement("li");
+    line.className = "history-set";
+
+    // El número ya lo anuncia la lista (<ol>): el círculo es solo visual
+    const number = document.createElement("span");
+    number.className = "history-set__number";
+    number.setAttribute("aria-hidden", "true");
+    number.textContent = index + 1;
+
+    const text = document.createElement("span");
+    text.textContent = describeDoneSet(set);
+
+    line.append(number, text);
+    sets.append(line);
+  });
+
+  item.append(header, sets);
+  return item;
+}
+
+// Si el entrenamiento todavía existe se usa ese (con los pesos de ahora);
+// si se borró, se arma uno con lo que se hizo ese día
+function workoutFromHistory(entry) {
+  return migrateWorkout({
+    id: entry.workoutId,
+    name: entry.workoutName,
+    exercises: entry.exercises.map((exercise) => ({
+      name: exercise.name,
+      sets: exercise.sets.map((set) => ({ reps: set.reps, weight: set.weight })),
+    })),
+  });
+}
+
+historyRepeatBtn.addEventListener("click", () => {
+  if (!confirmReplaceSession()) return;
+  const workout = workouts.find((item) => item.id === detailEntry.workoutId) ?? workoutFromHistory(detailEntry);
+  historyDetail.close();
+  startSession(workout);
+});
+
+historyDetailBackBtn.addEventListener("click", () => historyDetail.close());
+
+historyDetail.addEventListener("close", () => {
+  detailEntry = null;
+});
 
 // --- Exportar e importar (backup) ---
 

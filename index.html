@@ -84,7 +84,7 @@
       </p>
     </section>
 
-    <!-- Informe: por ahora muestra el historial (el informe con totales llega en otro issue) -->
+    <!-- Informe: por ahora muestra el historial (el informe con totales llega en #37) -->
     <section class="view" data-view="informe" aria-labelledby="report-title" hidden>
       <header class="view__header">
         <h2 class="view__title" id="report-title">Informe</h2>
@@ -94,7 +94,26 @@
       <p class="history__empty" id="history-empty">
         Todavía no registraste entrenamientos. Se guardan al terminar uno con "Empezar".
       </p>
-      <ul class="history-list" id="history-list"></ul>
+
+      <!-- Calendario del mes: los días entrenados se marcan y al tocarlos se baja a su semana -->
+      <div class="calendar card" id="calendar">
+        <div class="calendar__header">
+          <button class="calendar__nav calendar__nav--prev" id="calendar-prev" type="button" aria-label="Mes anterior">
+            <svg class="icon"><use href="#icon-chevron"></use></svg>
+          </button>
+          <h4 class="calendar__title" id="calendar-title" aria-live="polite"></h4>
+          <button class="calendar__nav calendar__nav--next" id="calendar-next" type="button" aria-label="Mes siguiente">
+            <svg class="icon"><use href="#icon-chevron"></use></svg>
+          </button>
+        </div>
+        <div class="calendar__weekdays" aria-hidden="true">
+          <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span>
+        </div>
+        <div class="calendar__grid" id="calendar-grid"></div>
+      </div>
+
+      <!-- Un bloque por semana (de lunes a domingo), la más nueva primero -->
+      <div id="history-weeks"></div>
 
       <div class="backup card">
         <p class="backup__text">
@@ -161,6 +180,24 @@
     <footer class="preview__footer">
       <button class="btn btn--primary" id="preview-start-btn" type="button">Comenzar</button>
       <button class="btn btn--ghost" id="preview-edit-btn" type="button">Editar</button>
+    </footer>
+  </dialog>
+
+  <!-- Detalle de una sesión del historial: cada ejercicio con las series hechas. Usa la base de la vista previa -->
+  <dialog class="preview" id="history-detail" aria-labelledby="history-detail-title">
+    <header class="preview__header">
+      <button class="btn-text" id="history-detail-back-btn" type="button">‹ Volver</button>
+    </header>
+
+    <div class="preview__body">
+      <h2 class="preview__title" id="history-detail-title"></h2>
+      <p class="history-detail__date" id="history-detail-date"></p>
+      <p class="preview__summary" id="history-detail-summary"></p>
+      <ul class="history-detail__list" id="history-detail-list"></ul>
+    </div>
+
+    <footer class="preview__footer">
+      <button class="btn btn--primary" id="history-repeat-btn" type="button">Repetir entrenamiento</button>
     </footer>
   </dialog>
 
