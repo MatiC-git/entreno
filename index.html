@@ -84,15 +84,85 @@
       </p>
     </section>
 
-    <!-- Informe: por ahora muestra el historial (el informe con totales llega en #37) -->
+    <!-- Informe: totales, entrenamientos por semana, esta semana y las últimas sesiones -->
     <section class="view" data-view="informe" aria-labelledby="report-title" hidden>
       <header class="view__header">
         <h2 class="view__title" id="report-title">Informe</h2>
       </header>
 
-      <h3 class="view__subtitle">Historial</h3>
+      <p class="history__empty" id="report-empty">
+        Todavía no registraste entrenamientos. Cuando termines uno, acá vas a ver tus totales.
+      </p>
+
+      <div id="report-content">
+        <h3 class="report__heading">Total</h3>
+        <div class="stats card">
+          <p class="stat">
+            <span class="stat__label">Entrenamientos</span>
+            <span class="stat__value" id="total-count"></span>
+          </p>
+          <p class="stat">
+            <span class="stat__label">Tiempo</span>
+            <span class="stat__value" id="total-time"></span>
+          </p>
+        </div>
+
+        <!-- Una barra por semana (las últimas 8); la actual, a la derecha y en naranja -->
+        <h3 class="report__heading" id="week-chart-title">Entrenamientos por semana</h3>
+        <div class="week-chart card">
+          <ol class="week-chart__weeks" id="week-chart" aria-labelledby="week-chart-title"></ol>
+        </div>
+
+        <!-- De lunes a domingo, como el calendario del historial -->
+        <h3 class="report__heading">Esta semana</h3>
+        <div class="this-week card">
+          <div class="calendar__weekdays" aria-hidden="true">
+            <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span>
+          </div>
+          <div class="calendar__grid" id="this-week-days"></div>
+          <div class="stats this-week__stats">
+            <p class="stat">
+              <span class="stat__label">Hoy</span>
+              <span class="stat__value" id="today-time"></span>
+            </p>
+            <p class="stat">
+              <span class="stat__label">Media semanal</span>
+              <span class="stat__value" id="weekly-average"></span>
+            </p>
+          </div>
+        </div>
+
+        <div class="report__heading-row">
+          <h3 class="report__heading">Historial</h3>
+          <button class="btn-text" type="button" data-open-view="historial">Ver todos ›</button>
+        </div>
+        <ul class="history-list" id="recent-history"></ul>
+      </div>
+
+      <div class="backup card">
+        <p class="backup__text">
+          Tus datos se guardan solo en este navegador. Exportalos para tener un backup
+          o pasarlos a otro dispositivo.
+        </p>
+        <div class="backup__actions">
+          <button class="btn btn--ghost" id="export-btn" type="button">Exportar</button>
+          <button class="btn btn--ghost" id="import-btn" type="button">Importar</button>
+        </div>
+        <!-- Oculto: "Importar" lo abre para elegir el archivo -->
+        <input id="import-input" type="file" accept=".json,application/json" hidden>
+      </div>
+    </section>
+
+    <!-- Historial completo: se abre con "Ver todos" del informe. No tiene botón propio en la barra:
+         data-nav hace que siga resaltado "Informe" -->
+    <section class="view" data-view="historial" data-nav="informe" aria-labelledby="history-title" hidden>
+      <header class="view__header view__header--back">
+        <button class="btn-text" type="button" data-open-view="informe">‹ Volver</button>
+        <h2 class="view__title" id="history-title">Historial</h2>
+      </header>
+
       <p class="history__empty" id="history-empty">
-        Todavía no registraste entrenamientos. Se guardan al terminar uno con "Empezar".
+        Todavía no registraste entrenamientos. Se guardan al terminar uno con "Comenzar".
       </p>
 
       <!-- Calendario del mes: los días entrenados se marcan y al tocarlos se baja a su semana -->
@@ -114,19 +184,6 @@
 
       <!-- Un bloque por semana (de lunes a domingo), la más nueva primero -->
       <div id="history-weeks"></div>
-
-      <div class="backup card">
-        <p class="backup__text">
-          Tus datos se guardan solo en este navegador. Exportalos para tener un backup
-          o pasarlos a otro dispositivo.
-        </p>
-        <div class="backup__actions">
-          <button class="btn btn--ghost" id="export-btn" type="button">Exportar</button>
-          <button class="btn btn--ghost" id="import-btn" type="button">Importar</button>
-        </div>
-        <!-- Oculto: "Importar" lo abre para elegir el archivo -->
-        <input id="import-input" type="file" accept=".json,application/json" hidden>
-      </div>
     </section>
 
     <section class="view" data-view="perfil" aria-labelledby="profile-title" hidden>

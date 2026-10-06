@@ -86,6 +86,15 @@ const restTitle = document.getElementById("rest-title");
 const restText = document.getElementById("rest-text");
 const restMinutesInput = document.getElementById("rest-minutes");
 const restSecondsInput = document.getElementById("rest-seconds");
+const reportEmpty = document.getElementById("report-empty");
+const reportContent = document.getElementById("report-content");
+const totalCount = document.getElementById("total-count");
+const totalTime = document.getElementById("total-time");
+const weekChart = document.getElementById("week-chart");
+const thisWeekDays = document.getElementById("this-week-days");
+const todayTime = document.getElementById("today-time");
+const weeklyAverage = document.getElementById("weekly-average");
+const recentHistory = document.getElementById("recent-history");
 const historyEmpty = document.getElementById("history-empty");
 const historyWeeks = document.getElementById("history-weeks");
 const calendar = document.getElementById("calendar");
@@ -1479,16 +1488,33 @@ function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// En milisegundos: 42 min → "42 min", 75 min → "1 h 15 min"
-function formatMinutes(ms) {
-  const minutes = Math.max(1, Math.round(ms / 60000));
+// 42 → "42 min", 75 → "1 h 15 min"
+function describeMinutes(minutes) {
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
+// Lo que dura una sesión, en milisegundos: al menos "1 min", para que no parezca que no se entrenó
+function formatMinutes(ms) {
+  return describeMinutes(Math.max(1, Math.round(ms / 60000)));
+}
+
+// Sumas del informe (total, hoy, media semanal): pueden dar "0 min"
+function formatTotalMinutes(ms) {
+  return describeMinutes(Math.round(ms / 60000));
+}
+
 // Las sesiones viejas no tienen durationMs (no había pausas): de la hora de inicio a la de fin
+function entryDurationMs(entry) {
+  return entry.durationMs ?? new Date(entry.finishedAt) - new Date(entry.startedAt);
+}
+
 function formatDuration(entry) {
-  return formatMinutes(entry.durationMs ?? new Date(entry.finishedAt) - new Date(entry.startedAt));
+  return formatMinutes(entryDurationMs(entry));
+}
+
+function sumDurations(entries) {
+  return entries.reduce((sum, entry) => sum + entryDurationMs(entry), 0);
 }
 
 // Una serie del historial: "40 kg × 10" (peso antes que reps, como en el editor), o "10 reps" si no tenía peso
@@ -1519,12 +1545,157 @@ function sortedHistory() {
   return [...historyEntries].sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
 }
 
+// Dibuja el informe y el historial completo (los dos salen de las mismas sesiones)
 function renderHistory() {
   const hasHistory = historyEntries.length > 0;
+  reportEmpty.hidden = hasHistory;
+  reportContent.hidden = !hasHistory;
   historyEmpty.hidden = hasHistory;
   calendar.hidden = !hasHistory;
+  renderReport();
   renderCalendar();
   renderHistoryWeeks();
+}
+
+// Sesiones por día: "2026-10-02" → [sesiones de ese día]
+function historyByDay() {
+  const byDay = new Map();
+  for (const entry of historyEntries) {
+    const key = localDateStamp(new Date(entry.startedAt));
+    byDay.set(key, [...(byDay.get(key) ?? []), entry]);
+  }
+  return byDay;
+}
+
+// Fecha de la sesión más vieja; hoy si no hay historial
+function oldestHistoryDate() {
+  const oldest = historyEntries.reduce(
+    (min, entry) => Math.min(min, new Date(entry.startedAt).getTime()),
+    Date.now()
+  );
+  return new Date(oldest);
+}
+
+// Un día del calendario o de "Esta semana": un círculo, naranja si se entrenó y con anillo si es hoy.
+// Solo los días entrenados son botones; al tocarlos se llama a onPick(date).
+function renderCalendarDay(date, entries, onPick) {
+  const key = localDateStamp(date);
+  const today = localDateStamp();
+
+  const cell = document.createElement(entries ? "button" : "span");
+  cell.className = "calendar__day";
+  cell.textContent = date.getDate();
+  if (key === today) {
+    cell.classList.add("calendar__day--today");
+    cell.setAttribute("aria-current", "date");
+  }
+  if (key > today) cell.classList.add("calendar__day--future");
+  if (entries) {
+    cell.type = "button";
+    cell.classList.add("calendar__day--trained");
+    cell.setAttribute(
+      "aria-label",
+      `${calendarDayFormat.format(date)}: ${entries.map((entry) => entry.workoutName).join(", ")}`
+    );
+    cell.addEventListener("click", () => onPick(date));
+  }
+  return cell;
+}
+
+// --- Informe ---
+
+const CHART_WEEKS = 8;
+const RECENT_SESSIONS = 3;
+const chartMonthFormat = new Intl.DateTimeFormat("es-AR", { month: "short" });
+
+function renderReport() {
+  totalCount.textContent = historyEntries.length;
+  totalTime.textContent = formatTotalMinutes(sumDurations(historyEntries));
+  renderWeekChart();
+  renderThisWeek();
+  recentHistory.replaceChildren(...sortedHistory().slice(0, RECENT_SESSIONS).map(renderHistoryCard));
+}
+
+// Lunes de hace "weeksAgo" semanas (0 = esta semana)
+function mondayWeeksAgo(weeksAgo) {
+  const monday = startOfWeek(new Date());
+  monday.setDate(monday.getDate() - 7 * weeksAgo);
+  return monday;
+}
+
+function renderWeekChart() {
+  // De la más vieja a la actual, así la actual queda a la derecha
+  const weeks = Array.from({ length: CHART_WEEKS }, (_, index) => ({
+    monday: mondayWeeksAgo(CHART_WEEKS - 1 - index),
+    count: 0,
+  }));
+  const byMonday = new Map(weeks.map((week) => [localDateStamp(week.monday), week]));
+  for (const entry of historyEntries) {
+    const week = byMonday.get(localDateStamp(startOfWeek(new Date(entry.startedAt))));
+    if (week) week.count++;
+  }
+
+  weekChart.replaceChildren(
+    ...weeks.map((week, index) => renderChartWeek(week, index === CHART_WEEKS - 1))
+  );
+}
+
+// Una columna: el número arriba de la barra y, abajo, el lunes de la semana ("28 / sept").
+// El alto máximo es 7 (los días de la semana), así las semanas se comparan siempre con la misma escala.
+// Tope 7, por si hubo dos entrenamientos en un día.
+function renderChartWeek({ monday, count }, current) {
+  const item = document.createElement("li");
+  item.className = current ? "week-chart__week week-chart__week--current" : "week-chart__week";
+  item.setAttribute(
+    "aria-label",
+    `${current ? "Esta semana" : `Semana del ${weekDayFormat.format(monday)}`}: ${plural(count, "entrenamiento", "entrenamientos")}`
+  );
+
+  const column = document.createElement("span");
+  column.className = "week-chart__column";
+  column.setAttribute("aria-hidden", "true");
+
+  const value = document.createElement("span");
+  value.className = "week-chart__value";
+  value.textContent = count || "";
+
+  const bar = document.createElement("span");
+  bar.className = "week-chart__bar";
+  bar.style.setProperty("--days", Math.min(count, 7));
+
+  const label = document.createElement("span");
+  label.className = "week-chart__label";
+  label.setAttribute("aria-hidden", "true");
+  label.innerHTML = `<span>${monday.getDate()}</span><span>${chartMonthFormat.format(monday)}</span>`;
+
+  column.append(value, bar);
+  item.append(column, label);
+  return item;
+}
+
+function renderThisWeek() {
+  const byDay = historyByDay();
+  const monday = mondayWeeksAgo(0);
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return renderCalendarDay(date, byDay.get(localDateStamp(date)), openHistoryDay);
+  });
+  thisWeekDays.replaceChildren(...days);
+
+  todayTime.textContent = formatTotalMinutes(sumDurations(byDay.get(localDateStamp()) ?? []));
+
+  // Media: el tiempo total repartido entre las semanas desde la primera sesión (incluida la actual)
+  const weeks = Math.round((monday - startOfWeek(oldestHistoryDate())) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  weeklyAverage.textContent = formatTotalMinutes(sumDurations(historyEntries) / weeks);
+}
+
+// Desde "Esta semana": abre el historial con el calendario en ese mes y baja hasta el día
+function openHistoryDay(date) {
+  showView("historial");
+  calendarMonth = startOfMonth(date);
+  renderCalendar();
+  scrollToWeek(date);
 }
 
 // --- Calendario ---
@@ -1532,46 +1703,19 @@ function renderHistory() {
 function renderCalendar() {
   calendarTitle.textContent = capitalize(calendarMonthFormat.format(calendarMonth));
 
-  // Sesiones por día: "2026-10-02" → [sesiones de ese día]
-  const byDay = new Map();
-  for (const entry of historyEntries) {
-    const key = localDateStamp(new Date(entry.startedAt));
-    byDay.set(key, [...(byDay.get(key) ?? []), entry]);
-  }
-
+  const byDay = historyByDay();
   const year = calendarMonth.getFullYear();
   const month = calendarMonth.getMonth();
-  const today = localDateStamp();
 
   // Huecos antes del día 1, para que caiga bajo su día de la semana (la primera columna es el lunes)
   const blanks = (calendarMonth.getDay() + 6) % 7;
   const cells = Array.from({ length: blanks }, () => document.createElement("span"));
 
+  // Tocar un día entrenado baja hasta su semana
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
-    const key = localDateStamp(date);
-    const entries = byDay.get(key);
-
-    // Solo los días entrenados son botones: al tocarlos se baja a su semana
-    const cell = document.createElement(entries ? "button" : "span");
-    cell.className = "calendar__day";
-    cell.textContent = day;
-    if (key === today) {
-      cell.classList.add("calendar__day--today");
-      cell.setAttribute("aria-current", "date");
-    }
-    if (key > today) cell.classList.add("calendar__day--future");
-    if (entries) {
-      cell.type = "button";
-      cell.classList.add("calendar__day--trained");
-      cell.setAttribute(
-        "aria-label",
-        `${calendarDayFormat.format(date)}: ${entries.map((entry) => entry.workoutName).join(", ")}`
-      );
-      cell.addEventListener("click", () => scrollToWeek(date));
-    }
-    cells.push(cell);
+    cells.push(renderCalendarDay(date, byDay.get(localDateStamp(date)), scrollToWeek));
   }
   calendarGrid.replaceChildren(...cells);
 
@@ -1582,11 +1726,7 @@ function renderCalendar() {
 
 // Mes (su día 1) de la sesión más vieja; el actual si no hay historial
 function oldestHistoryMonth() {
-  const oldest = historyEntries.reduce(
-    (min, entry) => Math.min(min, new Date(entry.startedAt).getTime()),
-    Date.now()
-  );
-  return startOfMonth(new Date(oldest));
+  return startOfMonth(oldestHistoryDate());
 }
 
 function moveCalendar(months) {
@@ -2075,8 +2215,11 @@ function showView(name) {
   if (!views.some((view) => view.dataset.view === name)) name = DEFAULT_VIEW;
 
   for (const view of views) view.hidden = view.dataset.view !== name;
+
+  // Una pantalla sin botón propio (el historial) resalta el de su sección (data-nav)
+  const navName = views.find((view) => view.dataset.view === name).dataset.nav ?? name;
   for (const button of document.querySelectorAll(".nav-bar__item")) {
-    const active = button.dataset.openView === name;
+    const active = button.dataset.openView === navName;
     button.classList.toggle("nav-bar__item--active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
