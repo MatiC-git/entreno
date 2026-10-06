@@ -390,6 +390,12 @@ body {
   transform: scale(0.98);
 }
 
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+}
+
 .btn--secondary {
   background: transparent;
   color: var(--accent);
@@ -925,10 +931,35 @@ body {
   padding: 0 var(--gutter);
 }
 
+/* Nombre del entrenamiento y, debajo, el reloj de la sesión */
+.session__heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.session__heading .session__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session__clock {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums; /* que los números no bailen al cambiar */
+  color: var(--accent);
+}
+
 /* "Terminar" arriba a la derecha: terminar antes, o directo si ya está todo hecho */
 .session__finish {
   flex-shrink: 0;
   margin-left: auto;
+}
+
+/* "+ Agregar ejercicio" al final de la lista del modo entrenar */
+.session__add {
+  margin-top: 12px;
 }
 
 .session__finish[hidden] {
@@ -961,8 +992,9 @@ body {
 }
 
 /* Serie en el modo entrenar: "○  1  [15] KG  10 REPS". Sin ✕ a la derecha, así que lleva aire. */
+/* Como la fila del editor, con el check en lugar del espacio de la izquierda */
 .session-set {
-  padding: 6px 12px 6px 0;
+  padding: 6px 0;
 }
 
 /* La que toca ahora: borde naranja */
@@ -1153,6 +1185,108 @@ body {
 
 .finish-stats__label {
   font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* "¿Actualizar tu entrenamiento?": una tarjeta por cambio. Si son muchos, la lista se desplaza
+   y los botones quedan a la vista. */
+.update-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50dvh;
+  margin-bottom: 8px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* El navegador la enfoca al abrir la hoja (se puede desplazar); el borde no aporta nada */
+.update-list:focus {
+  outline: none;
+}
+
+.update-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.update-item__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.update-item__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.update-item__kind {
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+.update-item__title {
+  font-weight: 700;
+}
+
+.update-item__check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* Antes → después: dos columnas con la flecha centrada */
+.update-item__comparison {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-item__comparison--new {
+  grid-template-columns: 1fr;
+}
+
+.update-item__column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.update-item__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Número de serie en un círculo */
+.update-item__number {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.update-item__arrow {
   color: var(--text-muted);
 }
 
