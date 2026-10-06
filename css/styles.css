@@ -1156,11 +1156,150 @@ body {
   color: var(--text-muted);
 }
 
-/* Informe: por ahora, el historial. Una tarjeta por sesión, que se despliega al tocarla */
+/* Informe: por ahora, el historial. Calendario del mes y, abajo, las sesiones agrupadas por semana */
 .history__empty {
   margin: 10vh 0;
   text-align: center;
   color: var(--text-muted);
+}
+
+.calendar {
+  margin-bottom: 24px;
+  padding: 8px 12px 12px;
+}
+
+.calendar[hidden] {
+  display: none;
+}
+
+/* "‹  Octubre de 2026  ›" */
+.calendar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar__title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.calendar__nav {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.calendar__nav:active {
+  background: var(--bg);
+}
+
+.calendar__nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* El ícono es una flecha hacia abajo: se gira para cada lado */
+.calendar__nav--prev .icon {
+  transform: rotate(90deg);
+}
+
+.calendar__nav--next .icon {
+  transform: rotate(-90deg);
+}
+
+/* Siete columnas, de lunes a domingo */
+.calendar__weekdays,
+.calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  justify-items: center;
+}
+
+.calendar__weekdays {
+  margin: 4px 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.calendar__grid {
+  row-gap: 6px;
+}
+
+/* Cada día, un círculo. Los entrenados, naranjas (y se pueden tocar) */
+.calendar__day {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar__day--future {
+  opacity: 0.4;
+}
+
+.calendar__day--today {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.calendar__day--trained {
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.calendar__day--trained:active {
+  transform: scale(0.92);
+}
+
+/* Hoy y entrenado: un anillo por fuera del naranja */
+.calendar__day--trained.calendar__day--today {
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Un bloque por semana: "28 sept – 4 oct ........ 2 entrenamientos" y sus tarjetas.
+   Al bajar desde el calendario, el margen evita que el encabezado fijo tape el título. */
+.history-week {
+  scroll-margin-top: calc(80px + env(safe-area-inset-top));
+}
+
+.history-week + .history-week {
+  margin-top: 20px;
+}
+
+.history-week__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.history-week__title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.history-week__count {
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 .history-list {
@@ -1168,8 +1307,142 @@ body {
   padding: 0;
 }
 
-.history-entry {
+/* Toda la tarjeta es un botón que abre el detalle de la sesión */
+.history-card {
+  display: block;
+  width: 100%;
   margin-bottom: 12px;
+  padding: 12px var(--gutter);
+  border: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-card:active {
+  transform: scale(0.98);
+}
+
+/* Al tocar un día en el calendario: borde naranja que se desvanece (arranca después del scroll) */
+.history-card--flash {
+  animation: history-flash 1.6s ease-out 0.3s;
+}
+
+@keyframes history-flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 2px var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-card--flash {
+    animation-delay: 0s;
+  }
+}
+
+.history-card__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.history-card__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* La flecha (hacia abajo) girada: "›", se abre otra pantalla */
+.history-card__chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  transform: rotate(-90deg);
+}
+
+.history-card__meta {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Detalle de una sesión: usa la base de la vista previa (.preview) */
+.history-detail__date {
+  color: var(--text-muted);
+}
+
+.history-detail__list {
+  list-style: none;
+  padding: 0;
+}
+
+.history-exercise {
+  margin-bottom: 12px;
+  padding: 12px var(--gutter);
+}
+
+.history-exercise__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.history-exercise .exercise-thumb {
+  width: 44px;
+  height: 44px;
+}
+
+.history-exercise__name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.history-sets {
+  list-style: none;
+  padding: 0;
+}
+
+/* "① 30 kg × 8" */
+.history-set {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-set + .history-set {
+  border-top: 1px solid var(--border);
+}
+
+.history-set__number {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 /* Al final del informe: aviso de dónde viven los datos + Exportar / Importar */
@@ -1231,62 +1504,6 @@ body {
 
 .credit a {
   color: inherit;
-}
-
-.history-entry__summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 8px;
-  padding: var(--gutter);
-  list-style: none;
-  cursor: pointer;
-}
-
-/* Safari muestra su propio triángulo si no se oculta */
-.history-entry__summary::-webkit-details-marker {
-  display: none;
-}
-
-.history-entry__title {
-  font-weight: 700;
-}
-
-.history-entry__badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.history-entry__meta {
-  flex-basis: 100%;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-
-.history-entry__exercises {
-  list-style: none;
-  padding: 0 var(--gutter) var(--gutter);
-}
-
-/* Con sangría, para que se lea como detalle de la sesión */
-.history-entry__exercises li {
-  padding: 8px 0 8px 16px;
-  border-top: 1px solid var(--border);
-}
-
-.history-entry__exercise {
-  display: block;
-  font-weight: 600;
-}
-
-.history-entry__sets {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Directorio de ejercicios: buscador arriba y lista con foto */
