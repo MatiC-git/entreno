@@ -422,7 +422,11 @@
   <dialog class="session" id="workout-session" aria-labelledby="session-title">
     <header class="session__header">
       <button class="btn-text" id="session-pause-btn" type="button">Pausa</button>
-      <h2 class="session__title" id="session-title"></h2>
+      <div class="session__heading">
+        <h2 class="session__title" id="session-title"></h2>
+        <!-- Cuánto llevo entrenando (sin contar las pausas); app.js lo actualiza cada segundo -->
+        <span class="session__clock" id="session-clock" role="timer" aria-label="Tiempo de entrenamiento">0:00</span>
+      </div>
       <button class="btn-pill session__finish" id="session-finish-btn" type="button">Terminar</button>
     </header>
 
@@ -434,6 +438,7 @@
 
       <div id="session-exercises">
         <ol class="exercise-fields" id="session-plan"></ol>
+        <button class="btn btn--secondary session__add" id="session-add-btn" type="button">+ Agregar ejercicio</button>
         <p class="credit">
           Imágenes de <a href="https://wger.de" target="_blank" rel="noopener">wger.de</a> (Creative Commons)
         </p>
@@ -465,11 +470,12 @@
       <!-- Arranca plegada: app.js abre la del ejercicio que toca -->
       <div class="exercise-row__body" hidden>
         <ol class="set-fields"></ol>
+        <button class="exercise-row__add-set" type="button">+ Agregar una serie</button>
       </div>
     </li>
   </template>
 
-  <!-- Molde de cada serie en el modo entrenar: "○  1  [15] kg  [10] reps". El check se puede desmarcar.
+  <!-- Molde de cada serie en el modo entrenar: "○  1  [15] kg  [10] reps  ✕". El check se puede desmarcar.
        Peso y reps se pueden ajustar antes o después de marcarla (ej: no salió el peso y se hicieron menos). -->
   <template id="session-set-template">
     <li class="set-row session-set">
@@ -487,6 +493,7 @@
                min="1" max="100" required>
         <span>reps</span>
       </label>
+      <button class="set-row__remove" type="button">✕</button>
     </li>
   </template>
 
@@ -544,6 +551,18 @@
       </div>
       <button class="btn btn--primary" value="finish">Terminar</button>
       <button class="btn btn--ghost" value="">Seguir entrenando</button>
+    </form>
+  </dialog>
+
+  <!-- Al salir de la pantalla de cierre, si en la sesión se cambió algo: antes → después por ejercicio,
+       cada uno con su casilla. app.js arma la lista. -->
+  <dialog class="sheet" id="update-dialog" aria-labelledby="update-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="update-title">¿Actualizar tu entrenamiento?</h2>
+      <p class="sheet__text">Hiciste cambios durante el entrenamiento. ¿Los guardás para la próxima vez?</p>
+      <ul class="update-list" id="update-list"></ul>
+      <button class="btn btn--primary" id="update-save-btn" value="update">Actualizar todos los cambios</button>
+      <button class="btn btn--ghost" value="">Conservar actual</button>
     </form>
   </dialog>
 
