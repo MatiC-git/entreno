@@ -95,6 +95,7 @@ const calendarPrevBtn = document.getElementById("calendar-prev");
 const calendarNextBtn = document.getElementById("calendar-next");
 const historyDetail = document.getElementById("history-detail");
 const historyDetailBackBtn = document.getElementById("history-detail-back-btn");
+const historyDetailMenuBtn = document.getElementById("history-detail-menu-btn");
 const historyDetailTitle = document.getElementById("history-detail-title");
 const historyDetailDate = document.getElementById("history-detail-date");
 const historyDetailSummary = document.getElementById("history-detail-summary");
@@ -1575,12 +1576,17 @@ function renderCalendar() {
   calendarGrid.replaceChildren(...cells);
 
   // No se puede ir más atrás del mes de la primera sesión ni más adelante del actual
+  calendarPrevBtn.disabled = calendarMonth <= oldestHistoryMonth();
+  calendarNextBtn.disabled = calendarMonth >= startOfMonth(new Date());
+}
+
+// Mes (su día 1) de la sesión más vieja; el actual si no hay historial
+function oldestHistoryMonth() {
   const oldest = historyEntries.reduce(
     (min, entry) => Math.min(min, new Date(entry.startedAt).getTime()),
     Date.now()
   );
-  calendarPrevBtn.disabled = calendarMonth <= startOfMonth(new Date(oldest));
-  calendarNextBtn.disabled = calendarMonth >= startOfMonth(new Date());
+  return startOfMonth(new Date(oldest));
 }
 
 function moveCalendar(months) {
@@ -1784,6 +1790,28 @@ historyRepeatBtn.addEventListener("click", () => {
 });
 
 historyDetailBackBtn.addEventListener("click", () => historyDetail.close());
+
+historyDetailMenuBtn.addEventListener("click", () => {
+  const entry = detailEntry;
+  openActionMenu(entry.workoutName, [
+    { label: "Borrar sesión", danger: true, action: () => deleteHistoryEntry(entry) },
+  ]);
+});
+
+// Se compara por referencia: el detalle guarda la misma sesión que está en historyEntries
+function deleteHistoryEntry(entry) {
+  const date = historyLongDateFormat.format(new Date(entry.startedAt));
+  if (!confirm(`¿Borrar la sesión de "${entry.workoutName}" del ${date}? No se puede deshacer.`)) return;
+
+  historyEntries = historyEntries.filter((item) => item !== entry);
+  saveHistory();
+
+  // Si se borró la única sesión de los meses más viejos, el calendario no puede quedar antes de la primera
+  if (calendarMonth < oldestHistoryMonth()) calendarMonth = oldestHistoryMonth();
+
+  historyDetail.close();
+  renderHistory();
+}
 
 historyDetail.addEventListener("close", () => {
   detailEntry = null;
