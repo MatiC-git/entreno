@@ -175,6 +175,8 @@ function loadWorkouts() {
 function migrateWorkout(workout) {
   return {
     ...workout,
+    // Los de antes de ordenar por último cambio no tienen updatedAt: arrancan con su fecha de creación
+    updatedAt: workout.updatedAt ?? workout.createdAt ?? "",
     restBetweenExercises: workout.restBetweenExercises ?? DEFAULT_REST_BETWEEN_EXERCISES,
     exercises: workout.exercises.map(migrateExercise),
   };
@@ -245,11 +247,16 @@ function plural(count, singular, pluralWord) {
 // Cuántos ejercicios se ven en cada tarjeta; el resto, en la vista previa
 const CARD_EXERCISES = 3;
 
+// El último creado, cambiado o entrenado, arriba. Las fechas ISO se ordenan bien como texto.
+function workoutsByRecent() {
+  return [...workouts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 function renderWorkouts() {
   workoutList.replaceChildren();
   emptyState.hidden = workouts.length > 0;
 
-  for (const workout of workouts) {
+  for (const workout of workoutsByRecent()) {
     const item = document.createElement("li");
 
     // Toda la tarjeta es un botón que abre la vista previa.
@@ -615,11 +622,12 @@ form.addEventListener("submit", (event) => {
 
   const name = workoutNameInput.value.trim();
   const restBetweenExercises = editorRestBetweenExercises;
+  const now = new Date().toISOString();
 
   if (editingId) {
     // Reemplaza los datos y conserva el id y la fecha de creación
     workouts = workouts.map((workout) =>
-      workout.id === editingId ? { ...workout, name, restBetweenExercises, exercises } : workout
+      workout.id === editingId ? { ...workout, name, restBetweenExercises, exercises, updatedAt: now } : workout
     );
   } else {
     workouts.push({
@@ -627,7 +635,8 @@ form.addEventListener("submit", (event) => {
       name,
       restBetweenExercises,
       exercises,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     });
   }
 
@@ -795,7 +804,8 @@ renameDialog.addEventListener("close", () => {
 
 // Cambia algunos datos de un entrenamiento guardado (ej: el nombre) sin pasar por el editor
 function updateWorkout(id, changes) {
-  workouts = workouts.map((workout) => (workout.id === id ? { ...workout, ...changes } : workout));
+  const updatedAt = new Date().toISOString();
+  workouts = workouts.map((workout) => (workout.id === id ? { ...workout, ...changes, updatedAt } : workout));
   saveWorkouts();
   renderWorkouts();
 }
@@ -1435,18 +1445,28 @@ function saveSessionToHistory(completed) {
     }))
     .filter((exercise) => exercise.sets.length > 0);
 
+  const finishedAt = new Date().toISOString();
+
   historyEntries.unshift({
     id: String(Date.now()),
     workoutId: workout.id,
     workoutName: workout.name,
     startedAt,
-    finishedAt: new Date().toISOString(),
+    finishedAt,
     durationMs: sessionElapsedMs(),
     completed,
     plannedSets: countSets(workout),
     exercises,
   });
   saveHistory();
+
+  // El último entrenado sube arriba de la lista, aunque no se haya cambiado nada
+  const live = workouts.find((item) => item.id === workout.id);
+  if (live) {
+    live.updatedAt = finishedAt;
+    saveWorkouts();
+    renderWorkouts();
+  }
 }
 
 // Sale del modo entrenar y se olvida de la sesión (ya guardada en el historial, o descartada)
@@ -1808,7 +1828,9 @@ function applyPlanChanges(changes) {
 
   const rest = changes.find((change) => change.restBetweenExercises);
   if (rest) live.restBetweenExercises = rest.restBetweenExercises[1];
+  live.updatedAt = new Date().toISOString();
   saveWorkouts();
+  renderWorkouts();
 }
 
 // Al irse de la app (cambiar de app, apagar la pantalla) se guarda el tiempo hasta ese momento
