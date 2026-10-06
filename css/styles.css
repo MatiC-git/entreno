@@ -1738,27 +1738,196 @@ body {
   background: var(--bg);
 }
 
-/* Perfil (y cualquier sección futura): aviso de "Próximamente" */
-.coming-soon {
-  margin-top: 10vh;
-  padding: 32px var(--gutter);
-  text-align: center;
+/* --- Suplementos --- */
+
+/* Inicio: "Suplementos de hoy", arriba de los entrenamientos */
+.today-supplements {
+  margin-bottom: 16px;
+  padding: 12px var(--gutter) 4px;
 }
 
-.coming-soon__icon {
-  width: 48px;
-  height: 48px;
-  color: var(--accent);
+.today-supplements__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-.coming-soon__title {
-  margin-top: 8px;
-  font-size: 1.125rem;
+.supplement-checks {
+  list-style: none;
+  padding: 0;
+}
+
+.supplement-checks li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* Toda la fila es el botón: "○ Creatina 5 g ........ 🔥 6" */
+.supplement-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* El círculo, como el check de las series en el modo entrenar */
+.supplement-check .icon {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  stroke: transparent;
+  stroke-width: 3;
+}
+
+.supplement-check[aria-pressed="true"] .icon {
+  border-color: var(--accent);
+  background: var(--accent);
+  stroke: var(--accent-text);
+}
+
+.supplement-check:active .icon {
+  transform: scale(0.9);
+}
+
+.supplement-check__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.supplement-check__dose {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.supplement-check__streak {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Perfil: el título "Suplementos" es lo primero de la sección */
+.supplements__header {
+  margin-top: 0;
+}
+
+.supplements__empty {
+  padding: var(--gutter);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.supplement-list {
+  list-style: none;
+  padding: 0;
+}
+
+.supplement-card {
+  margin-bottom: 12px;
+  padding: 8px 4px 12px var(--gutter);
+}
+
+.supplement-card__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.supplement-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.0625rem;
   font-weight: 700;
 }
 
-.coming-soon__text {
+.supplement-card__info {
+  padding-right: 12px;
   color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Barra de avance del plan: los días cumplidos, en naranja */
+.supplement-progress {
+  height: 8px;
+  margin: 8px 12px 4px 0;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.supplement-progress__fill {
+  height: 100%;
+  width: calc(var(--progress) * 100%);
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+/* Últimos 7 días: la inicial arriba y el círculo abajo; tocar uno lo marca o desmarca */
+.supplement-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  justify-items: center;
+  margin: 8px 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.supplement-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.supplement-day .calendar__day {
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.supplement-day .calendar__day--trained {
+  background: var(--accent);
+}
+
+.supplement-day .calendar__day:active {
+  transform: scale(0.92);
+}
+
+/* Días antes de empezar o después de terminar el plan: no se pueden marcar */
+.supplement-day .calendar__day:disabled {
+  opacity: 0.4;
+  background: none;
+  cursor: default;
+  transform: none;
+}
+
+/* Hoja de agregar o editar: los campos más juntos que en el editor */
+.sheet__field {
+  margin-bottom: 8px;
+}
+
+.field__hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
 }
 
 /* Sección Ejercicios: buscador arriba, la misma lista que el selector del editor */

@@ -2,6 +2,7 @@
 const STORAGE_KEY = "entreno.workouts";
 const HISTORY_KEY = "entreno.history";
 const SESSION_KEY = "entreno.session"; // el entrenamiento en curso, para no perderlo si se cierra la app
+const SUPPLEMENTS_KEY = "entreno.supplements";
 
 // Descansos por defecto en segundos (también para entrenamientos guardados antes de tener estos campos):
 // entre series de un mismo ejercicio, y entre un ejercicio y el siguiente
@@ -132,11 +133,25 @@ const timerLessBtn = document.getElementById("timer-less-btn");
 const timerMoreBtn = document.getElementById("timer-more-btn");
 const timerSkipBtn = document.getElementById("timer-skip-btn");
 const timerPauseBtn = document.getElementById("timer-pause-btn");
+const todaySupplements = document.getElementById("today-supplements");
+const todaySupplementList = document.getElementById("today-supplement-list");
+const supplementsEmpty = document.getElementById("supplements-empty");
+const supplementList = document.getElementById("supplement-list");
+const addSupplementBtn = document.getElementById("add-supplement-btn");
+const supplementDialog = document.getElementById("supplement-dialog");
+const supplementDialogTitle = document.getElementById("supplement-dialog-title");
+const supplementNameInput = document.getElementById("supplement-name");
+const supplementDoseInput = document.getElementById("supplement-dose");
+const supplementDaysInput = document.getElementById("supplement-days");
+const supplementDaysHint = document.getElementById("supplement-days-hint");
 
 let workouts = loadWorkouts();
 
 // Sesiones registradas, la más nueva primero ("history" no se usa: es un nombre del navegador)
 let historyEntries = loadHistory();
+
+// Suplementos: { id, name, dose, startDate: "2026-10-06", days (null = sin fin), taken: ["2026-10-06", ...] }
+let supplements = loadSupplements();
 
 // id del entrenamiento que se está editando; null si se está creando uno nuevo
 let editingId = null;
@@ -201,6 +216,23 @@ function saveHistory() {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(historyEntries));
   } catch {
     // Igual que con los entrenamientos: sin guardado, dura hasta recargar
+  }
+}
+
+function loadSupplements() {
+  try {
+    const saved = localStorage.getItem(SUPPLEMENTS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSupplements() {
+  try {
+    localStorage.setItem(SUPPLEMENTS_KEY, JSON.stringify(supplements));
+  } catch {
+    // Sin guardado, dura hasta recargar
   }
 }
 
@@ -2305,6 +2337,274 @@ historyDetail.addEventListener("close", () => {
   detailEntry = null;
 });
 
+// --- Suplementos ---
+
+const supplementWeekdayFormat = new Intl.DateTimeFormat("es-AR", { weekday: "narrow" });
+const supplementStartFormat = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" });
+
+// Días que se ven en cada tarjeta de Perfil para marcar o corregir (el último es hoy)
+const SUPPLEMENT_DAYS_SHOWN = 7;
+
+// id del suplemento que se está editando; null si se está agregando uno
+let editingSupplementId = null;
+
+// "2026-10-06" → ese día a las 0:00 (hora local; new Date("2026-10-06") lo tomaría en UTC)
+function parseDateStamp(stamp) {
+  const [year, month, day] = stamp.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+// Último día del plan; null si es sin fin
+function supplementEnd(supplement) {
+  if (supplement.days == null) return null;
+  return localDateStamp(addDays(parseDateStamp(supplement.startDate), supplement.days - 1));
+}
+
+// Las fechas "2026-10-06" se pueden comparar como texto
+function inPlan(supplement, stamp) {
+  const end = supplementEnd(supplement);
+  return stamp >= supplement.startDate && (end == null || stamp <= end);
+}
+
+function countTakenInPlan(supplement) {
+  return supplement.taken.filter((stamp) => inPlan(supplement, stamp)).length;
+}
+
+// Días seguidos tomándolo hasta hoy. Si hoy todavía no se marcó, cuenta hasta ayer: la racha sigue viva.
+function supplementStreak(supplement) {
+  const taken = new Set(supplement.taken);
+  let day = new Date();
+  if (!taken.has(localDateStamp(day))) day = addDays(day, -1);
+
+  let streak = 0;
+  while (taken.has(localDateStamp(day))) {
+    streak++;
+    day = addDays(day, -1);
+  }
+  return streak;
+}
+
+// "12 de 30 días · Racha: 6 días", "Terminado · 28 de 30 días…" o "12 días · sin fin · Racha…"
+function describeSupplement(supplement) {
+  const count = countTakenInPlan(supplement);
+  const streak = `Racha: ${plural(supplementStreak(supplement), "día", "días")}`;
+  if (supplement.days == null) return `${plural(count, "día", "días")} · sin fin · ${streak}`;
+
+  const progress = `${count} de ${plural(supplement.days, "día", "días")}`;
+  const finished = localDateStamp() > supplementEnd(supplement);
+  return finished ? `Terminado · ${progress}` : `${progress} · ${streak}`;
+}
+
+// Dibuja "Suplementos de hoy" (Inicio) y la lista de Perfil
+function renderSupplements() {
+  const today = localDateStamp();
+  const active = supplements.filter((supplement) => inPlan(supplement, today));
+  todaySupplements.hidden = active.length === 0;
+  todaySupplementList.replaceChildren(...active.map(renderSupplementCheck));
+
+  supplementsEmpty.hidden = supplements.length > 0;
+  supplementList.replaceChildren(...supplements.map(renderSupplementCard));
+}
+
+// "Creatina 5 g": el nombre y, si tiene, la dosis más suave
+function renderSupplementName(supplement, className) {
+  const name = document.createElement("span");
+  name.className = className;
+  name.textContent = supplement.name;
+  if (supplement.dose) {
+    const dose = document.createElement("span");
+    dose.className = "supplement-check__dose";
+    dose.textContent = supplement.dose;
+    name.append(dose);
+  }
+  return name;
+}
+
+// Inicio: toda la fila es el check de hoy, con la racha a la derecha
+function renderSupplementCheck(supplement) {
+  const today = localDateStamp();
+  const streak = supplementStreak(supplement);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "supplement-check";
+  button.dataset.toggle = `${supplement.id}/${today}/hoy`;
+  button.setAttribute("aria-pressed", String(supplement.taken.includes(today)));
+  button.setAttribute(
+    "aria-label",
+    `${supplement.name}${supplement.dose ? ` ${supplement.dose}` : ""}. Racha: ${plural(streak, "día", "días")}`
+  );
+  button.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>';
+  button.append(renderSupplementName(supplement, "supplement-check__name"));
+
+  if (streak > 0) {
+    const streakText = document.createElement("span");
+    streakText.className = "supplement-check__streak";
+    streakText.textContent = `🔥 ${streak}`;
+    button.append(streakText);
+  }
+
+  button.addEventListener("click", () => toggleSupplementDay(supplement.id, today, button));
+
+  const item = document.createElement("li");
+  item.append(button);
+  return item;
+}
+
+// Perfil: nombre y ⋮, cómo va el plan (con barra si tiene fin) y los últimos 7 días para marcar
+function renderSupplementCard(supplement) {
+  const item = document.createElement("li");
+  item.className = "supplement-card card";
+
+  const top = document.createElement("div");
+  top.className = "supplement-card__top";
+
+  const menuBtn = document.createElement("button");
+  menuBtn.type = "button";
+  menuBtn.className = "menu-btn";
+  menuBtn.setAttribute("aria-label", `Opciones de ${supplement.name}`);
+  menuBtn.innerHTML = '<svg class="icon"><use href="#icon-more"></use></svg>';
+  menuBtn.addEventListener("click", () =>
+    openActionMenu(supplement.name, [
+      { label: "Editar", action: () => openSupplementDialog(supplement) },
+      { label: "Borrar", danger: true, action: () => deleteSupplement(supplement) },
+    ])
+  );
+
+  top.append(renderSupplementName(supplement, "supplement-card__title"), menuBtn);
+
+  const info = document.createElement("p");
+  info.className = "supplement-card__info";
+  info.textContent = describeSupplement(supplement);
+
+  item.append(top, info);
+
+  if (supplement.days != null) {
+    const progress = document.createElement("div");
+    progress.className = "supplement-progress";
+    progress.setAttribute("aria-hidden", "true"); // el texto de arriba ya dice cuánto lleva
+    const fill = document.createElement("div");
+    fill.className = "supplement-progress__fill";
+    fill.style.setProperty("--progress", Math.min(1, countTakenInPlan(supplement) / supplement.days));
+    progress.append(fill);
+    item.append(progress);
+  }
+
+  item.append(renderSupplementDays(supplement));
+  return item;
+}
+
+// Un círculo por día, naranja si se tomó. Los de fuera del plan no se pueden tocar.
+function renderSupplementDays(supplement) {
+  const list = document.createElement("ol");
+  list.className = "supplement-days";
+  list.setAttribute("aria-label", "Últimos 7 días");
+
+  for (let daysAgo = SUPPLEMENT_DAYS_SHOWN - 1; daysAgo >= 0; daysAgo--) {
+    const date = addDays(new Date(), -daysAgo);
+    const stamp = localDateStamp(date);
+    const taken = supplement.taken.includes(stamp);
+
+    const item = document.createElement("li");
+    item.className = "supplement-day";
+
+    const weekday = document.createElement("span");
+    weekday.setAttribute("aria-hidden", "true");
+    weekday.textContent = supplementWeekdayFormat.format(date).toUpperCase();
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "calendar__day";
+    button.textContent = date.getDate();
+    button.dataset.toggle = `${supplement.id}/${stamp}/perfil`;
+    button.disabled = !inPlan(supplement, stamp);
+    button.setAttribute("aria-pressed", String(taken));
+    button.setAttribute("aria-label", `${calendarDayFormat.format(date)}${daysAgo === 0 ? " (hoy)" : ""}`);
+    if (daysAgo === 0) button.classList.add("calendar__day--today");
+    if (taken) button.classList.add("calendar__day--trained");
+    button.addEventListener("click", () => toggleSupplementDay(supplement.id, stamp, button));
+
+    item.append(weekday, button);
+    list.append(item);
+  }
+  return list;
+}
+
+// Marca o desmarca un día. Todo se redibuja: el foco vuelve al mismo botón para seguir con el teclado.
+function toggleSupplementDay(id, stamp, button) {
+  const hadFocus = document.activeElement === button;
+  const key = button.dataset.toggle;
+
+  supplements = supplements.map((supplement) => {
+    if (supplement.id !== id) return supplement;
+    const taken = supplement.taken.includes(stamp)
+      ? supplement.taken.filter((day) => day !== stamp)
+      : [...supplement.taken, stamp].sort();
+    return { ...supplement, taken };
+  });
+  saveSupplements();
+  renderSupplements();
+
+  if (hadFocus) document.querySelector(`[data-toggle="${key}"]`)?.focus();
+}
+
+function openSupplementDialog(supplement = null) {
+  editingSupplementId = supplement?.id ?? null;
+  supplementDialogTitle.textContent = supplement ? "Editar suplemento" : "Nuevo suplemento";
+  supplementNameInput.value = supplement?.name ?? "";
+  supplementDoseInput.value = supplement?.dose ?? "";
+  supplementDaysInput.value = supplement?.days ?? "";
+
+  const start = supplement ? parseDateStamp(supplement.startDate) : new Date();
+  supplementDaysHint.textContent =
+    `Se cuentan desde el ${supplementStartFormat.format(start)}${supplement ? "" : " (hoy)"}. Vacío = sin fin.`;
+
+  supplementDialog.returnValue = "";
+  supplementDialog.showModal();
+}
+
+// "save" = Guardar o Enter; vacío = Cancelar, Escape, "atrás" o tocar el fondo
+supplementDialog.addEventListener("close", () => {
+  if (supplementDialog.returnValue !== "save") return;
+
+  const data = {
+    name: supplementNameInput.value.trim(),
+    dose: supplementDoseInput.value.trim(),
+    days: supplementDaysInput.value === "" ? null : Number(supplementDaysInput.value),
+  };
+
+  if (editingSupplementId) {
+    supplements = supplements.map((supplement) =>
+      supplement.id === editingSupplementId ? { ...supplement, ...data } : supplement
+    );
+  } else {
+    supplements = [...supplements, { id: String(Date.now()), ...data, startDate: localDateStamp(), taken: [] }];
+  }
+  saveSupplements();
+  renderSupplements();
+});
+
+function deleteSupplement(supplement) {
+  if (!confirm(`¿Borrar "${supplement.name}" y todos sus días marcados? No se puede deshacer.`)) return;
+
+  supplements = supplements.filter((item) => item.id !== supplement.id);
+  saveSupplements();
+  renderSupplements();
+}
+
+addSupplementBtn.addEventListener("click", () => openSupplementDialog());
+
+// Si la app quedó abierta de un día para otro, "hoy" cambia: se redibuja al volver a verla
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) renderSupplements();
+});
+
 // --- Exportar e importar (backup) ---
 
 // "2026-10-02" con la fecha local (toISOString usa UTC y de noche daría el día siguiente)
@@ -2313,7 +2613,7 @@ function localDateStamp(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-// Descarga un .json con los entrenamientos y el historial
+// Descarga un .json con los entrenamientos, el historial y los suplementos
 function exportData() {
   const data = {
     app: "entreno",
@@ -2321,6 +2621,7 @@ function exportData() {
     exportedAt: new Date().toISOString(),
     workouts,
     history: historyEntries,
+    supplements,
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -2341,7 +2642,16 @@ function parseBackup(text) {
     data?.app === "entreno" &&
     Array.isArray(data.workouts) &&
     Array.isArray(data.history) &&
-    data.workouts.every((workout) => typeof workout.name === "string" && Array.isArray(workout.exercises));
+    data.workouts.every((workout) => typeof workout.name === "string" && Array.isArray(workout.exercises)) &&
+    // Los backups de antes de los suplementos no los tienen
+    (data.supplements === undefined ||
+      (Array.isArray(data.supplements) &&
+        data.supplements.every(
+          (supplement) =>
+            typeof supplement.name === "string" &&
+            typeof supplement.startDate === "string" &&
+            Array.isArray(supplement.taken)
+        )));
 
   if (!valid) throw new Error("No es un backup de entreno");
   return data;
@@ -2356,9 +2666,12 @@ async function importData(file) {
     return;
   }
 
-  const summary =
-    `${plural(data.workouts.length, "entrenamiento", "entrenamientos")} y ` +
-    `${plural(data.history.length, "sesión", "sesiones")} de historial`;
+  const parts = [
+    plural(data.workouts.length, "entrenamiento", "entrenamientos"),
+    `${plural(data.history.length, "sesión", "sesiones")} de historial`,
+  ];
+  if (data.supplements) parts.push(plural(data.supplements.length, "suplemento", "suplementos"));
+  const summary = `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}`;
   if (!confirm(`¿Reemplazar todo con este backup (${summary})? Lo que hay ahora en este navegador se pierde.`)) return;
 
   workouts = data.workouts.map(migrateWorkout);
@@ -2367,6 +2680,13 @@ async function importData(file) {
   saveHistory();
   renderWorkouts();
   renderHistory();
+
+  // Un backup viejo (sin suplementos) deja los que ya había, para no perder los días marcados
+  if (data.supplements) {
+    supplements = data.supplements;
+    saveSupplements();
+    renderSupplements();
+  }
 }
 
 exportBtn.addEventListener("click", exportData);
@@ -2598,6 +2918,7 @@ for (const button of viewButtons) {
 
 renderWorkouts();
 renderHistory();
+renderSupplements();
 showView(location.hash.slice(1));
 // La sesión guardada se rearma después del catálogo, así sus tarjetas tienen imagen
 loadExerciseCatalog().then(loadSavedSession);

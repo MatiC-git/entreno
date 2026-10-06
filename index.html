@@ -60,6 +60,13 @@
         <button class="btn-pill" id="new-workout-btn" type="button">+ Nuevo</button>
       </header>
 
+      <!-- Suplementos de hoy: un check por cada uno con el plan en curso (se cargan en Perfil).
+           Si no hay ninguno en curso, no se muestra. -->
+      <section class="today-supplements card" id="today-supplements" aria-labelledby="today-supplements-title" hidden>
+        <h3 class="today-supplements__title" id="today-supplements-title">Suplementos de hoy</h3>
+        <ul class="supplement-checks" id="today-supplement-list"></ul>
+      </section>
+
       <div class="empty-state" id="empty-state">
         <p class="empty-state__title">Todavía no tenés entrenamientos</p>
         <p class="empty-state__text">Creá el primero con "+ Nuevo".</p>
@@ -191,11 +198,16 @@
         <h2 class="view__title" id="profile-title">Perfil</h2>
       </header>
 
-      <div class="coming-soon card">
-        <svg class="icon coming-soon__icon"><use href="#icon-profile"></use></svg>
-        <p class="coming-soon__title">Próximamente</p>
-        <p class="coming-soon__text">Acá vas a poder ver y ajustar tus datos.</p>
+      <!-- Suplementos: qué tomo, cuánto llevo del plan, la racha y los últimos 7 días para marcar -->
+      <div class="report__heading-row supplements__header">
+        <h3 class="report__heading">Suplementos</h3>
+        <button class="btn-text" id="add-supplement-btn" type="button">+ Agregar</button>
       </div>
+      <p class="supplements__empty card" id="supplements-empty">
+        Anotá lo que tomás (creatina, proteína…) y marcá cada día si lo tomaste.
+        Los de hoy aparecen arriba de tus entrenamientos.
+      </p>
+      <ul class="supplement-list" id="supplement-list"></ul>
     </section>
   </main>
 
@@ -271,6 +283,41 @@
       <button class="btn btn--ghost" value="" formnovalidate>Cancelar</button>
     </form>
   </dialog>
+
+  <!-- Agregar o editar un suplemento (desde Perfil) -->
+  <dialog class="sheet" id="supplement-dialog" aria-labelledby="supplement-dialog-title">
+    <form class="sheet__form" method="dialog">
+      <h2 class="sheet__title" id="supplement-dialog-title"></h2>
+      <label class="field sheet__field">
+        <span class="field__label">Nombre</span>
+        <input class="field__input" id="supplement-name" type="text" maxlength="40" required
+               pattern=".*\S.*" placeholder="Ej: Creatina" list="supplement-suggestions" autocomplete="off">
+      </label>
+      <label class="field sheet__field">
+        <span class="field__label">Dosis (opcional)</span>
+        <input class="field__input" id="supplement-dose" type="text" maxlength="20"
+               placeholder="Ej: 5 g" autocomplete="off">
+      </label>
+      <label class="field sheet__field">
+        <span class="field__label">¿Por cuántos días?</span>
+        <input class="field__input" id="supplement-days" type="number" inputmode="numeric"
+               min="1" max="365" placeholder="Sin fin" aria-describedby="supplement-days-hint">
+        <span class="field__hint" id="supplement-days-hint"></span>
+      </label>
+      <button class="btn btn--primary" value="save">Guardar</button>
+      <button class="btn btn--ghost" value="" formnovalidate>Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Sugerencias al escribir el nombre de un suplemento -->
+  <datalist id="supplement-suggestions">
+    <option value="Creatina"></option>
+    <option value="Proteína"></option>
+    <option value="Magnesio"></option>
+    <option value="Omega 3"></option>
+    <option value="Vitamina D"></option>
+    <option value="Cafeína"></option>
+  </datalist>
 
   <!-- Cambiar un descanso (entre series o entre ejercicios): minutos y segundos, como "2:00" -->
   <dialog class="sheet" id="rest-dialog" aria-labelledby="rest-title">
