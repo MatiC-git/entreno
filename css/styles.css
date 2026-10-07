@@ -1062,22 +1062,6 @@ body {
   color: var(--text);
 }
 
-.sheet[open] {
-  animation: sheet-up 0.2s ease-out;
-}
-
-@keyframes sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheet[open] {
-    animation: none;
-  }
-}
-
 .sheet::backdrop {
   background: rgb(0 0 0 / 0.6);
 }
@@ -2134,4 +2118,107 @@ button.picker-item:active {
 body {
   max-width: 480px;
   margin: 0 auto;
+}
+
+/* --- Animaciones ---
+   Al abrir: las hojas suben desde abajo y las pantallas completas aparecen subiendo un poco.
+   Al cerrar: app.js les pone .is-closing y espera a que termine la animación de salida
+   (sus nombres terminan en "-out") antes de cerrarlas de verdad. */
+.sheet[open] {
+  animation: sheet-in 0.22s ease-out;
+}
+
+.sheet.is-closing {
+  animation: sheet-out 0.18s ease-in forwards;
+}
+
+.editor[open],
+.session[open],
+.picker[open],
+.preview[open] {
+  animation: screen-in 0.22s ease-out;
+}
+
+.editor.is-closing,
+.session.is-closing,
+.picker.is-closing,
+.preview.is-closing {
+  animation: screen-out 0.18s ease-in forwards;
+}
+
+dialog[open]::backdrop {
+  animation: backdrop-in 0.22s ease-out;
+}
+
+dialog.is-closing::backdrop {
+  animation: backdrop-out 0.18s ease-in forwards;
+}
+
+/* Cambiar de sección con la barra inferior */
+.view:not([hidden]) {
+  animation: view-in 0.2s ease-out;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@keyframes screen-out {
+  to {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes backdrop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* "Reducir movimiento": sin animaciones; app.js ve que no hay ninguna y cierra al instante */
+@media (prefers-reduced-motion: reduce) {
+  .sheet[open],
+  .sheet.is-closing,
+  .editor[open],
+  .editor.is-closing,
+  .session[open],
+  .session.is-closing,
+  .picker[open],
+  .picker.is-closing,
+  .preview[open],
+  .preview.is-closing,
+  dialog[open]::backdrop,
+  dialog.is-closing::backdrop,
+  .view:not([hidden]) {
+    animation: none;
+  }
 }
