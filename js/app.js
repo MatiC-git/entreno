@@ -2900,6 +2900,69 @@ actionMenu.addEventListener("close", () => {
   menuItems = [];
 });
 
+// --- Animación al cerrar ventanas (<dialog>) ---
+
+// Un <dialog> se cierra de golpe, sin animación. Para que baje o se desvanezca, envolvemos
+// close(): le pone .is-closing (la animación de salida en styles.css) y cierra de verdad al
+// terminar. Sin animación ("reducir movimiento") cierra al instante.
+// Mientras se va, "open" ya da false, así el resto del código la trata como cerrada.
+const nativeOpen = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "open").get;
+
+function animateDialogClose(dialog) {
+  const close = dialog.close.bind(dialog);
+  const showModal = dialog.showModal.bind(dialog);
+  let closing = null; // el cierre en curso; null si no se está cerrando
+
+  Object.defineProperty(dialog, "open", {
+    get: () => nativeOpen.call(dialog) && !closing,
+  });
+
+  dialog.close = (value) => {
+    if (!dialog.open) return;
+    const current = (closing = {});
+    dialog.classList.add("is-closing");
+    const animations = dialog
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.animationName?.endsWith("-out"));
+    Promise.all(animations.map((animation) => animation.finished))
+      .catch(() => {}) // se canceló porque se volvió a abrir
+      .then(() => {
+        if (closing !== current) return;
+        closing = null;
+        dialog.classList.remove("is-closing");
+        close(value);
+      });
+  };
+
+  // Abrirla mientras se está yendo: cancela el cierre y queda abierta
+  dialog.showModal = () => {
+    if (closing) {
+      closing = null;
+      dialog.classList.remove("is-closing");
+      return;
+    }
+    showModal();
+  };
+
+  // Escape o "atrás" en el celular: cerrar con animación (salvo que la ventana lo maneje, ej: la sesión)
+  dialog.addEventListener("cancel", (event) => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    dialog.close();
+  });
+
+  // Los formularios method="dialog" también cierran de golpe; pasamos por close() con el
+  // "value" del botón tocado, que queda en returnValue igual que antes
+  dialog.addEventListener("submit", (event) => {
+    if (event.defaultPrevented || event.target.method !== "dialog") return;
+    event.preventDefault();
+    const button = event.submitter;
+    dialog.close(button?.hasAttribute("value") ? button.value : undefined);
+  });
+}
+
+for (const dialog of document.querySelectorAll("dialog")) animateDialogClose(dialog);
+
 // --- Hojas inferiores: tocar el fondo oscuro las cierra ---
 
 // Un toque en el fondo le llega al <dialog> mismo; uno en el contenido, a lo que está adentro.
